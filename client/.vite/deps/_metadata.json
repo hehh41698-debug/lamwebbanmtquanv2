@@ -1,0 +1,86 @@
+{
+  "hash": "ede0d6a8",
+  "browserHash": "ecf37b03",
+  "optimized": {
+    "vue": {
+      "src": "../../node_modules/vue/dist/vue.runtime.esm-bundler.js",
+      "file": "vue.js",
+      "fileHash": "7c234a2f",
+      "needsInterop": false
+    },
+    "vue-router": {
+      "src": "../../node_modules/vue-router/dist/vue-router.mjs",
+      "file": "vue-router.js",
+      "fileHash": "acea9da7",
+      "needsInterop": false
+    },
+    "pinia": {
+      "src": "../../node_modules/pinia/dist/pinia.mjs",
+      "file": "pinia.js",
+      "fileHash": "49dac2df",
+      "needsInterop": false
+    },
+    "axios": {
+      "src": "../../node_modules/axios/index.js",
+      "file": "axios.js",
+      "fileHash": "c36c4f94",
+      "needsInterop": false
+    },
+    "bootstrap": {
+      "src": "../../node_modules/bootstrap/dist/js/bootstrap.esm.js",
+      "file": "bootstrap.js",
+      "fileHash": "7284a653",
+      "needsInterop": false
+    },
+    "@popperjs/core": {
+      "src": "../../node_modules/@popperjs/core/lib/index.js",
+      "file": "@popperjs_core.js",
+      "fileHash": "489abc0f",
+      "needsInterop": false
+    },
+    "vue3-toastify": {
+      "src": "../../node_modules/vue3-toastify/dist/index.mjs",
+      "file": "vue3-toastify.js",
+      "fileHash": "9e1dfa48",
+      "needsInterop": false
+    },
+    "vue3-carousel": {
+      "src": "../../node_modules/vue3-carousel/dist/carousel.es.js",
+      "file": "vue3-carousel.js",
+      "fileHash": "44f9971e",
+      "needsInterop": false
+    },
+    "@vuelidate/core": {
+      "src": "../../node_modules/@vuelidate/core/dist/index.mjs",
+      "file": "@vuelidate_core.js",
+      "fileHash": "5c217dbd",
+      "needsInterop": false
+    },
+    "@vuelidate/validators": {
+      "src": "../../node_modules/@vuelidate/validators/dist/index.mjs",
+      "file": "@vuelidate_validators.js",
+      "fileHash": "d54b3b9d",
+      "needsInterop": false
+    },
+    "bootstrap/dist/js/bootstrap.bundle.min.js": {
+      "src": "../../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js",
+      "file": "bootstrap_dist_js_bootstrap__bundle__min__js.js",
+      "fileHash": "24feabd2",
+      "needsInterop": true
+    }
+  },
+  "chunks": {
+    "chunk-AYVSL3LM": {
+      "file": "chunk-AYVSL3LM.js"
+    },
+    "chunk-JTIKGBJX": {
+      "file": "chunk-JTIKGBJX.js"
+    },
+    "chunk-COGGOE6B": {
+      "file": "chunk-COGGOE6B.js"
+    },
+    "chunk-6TJCVOLN": {
+      "file": "chunk-6TJCVOLN.js"
+    }
+  }
+}
