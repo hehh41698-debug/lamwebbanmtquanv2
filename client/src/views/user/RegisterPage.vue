@@ -3,9 +3,16 @@
     <div class="auth-container">
       <div class="auth-card">
         <div class="auth-header">
-          <img src="/images/logo.png" alt="Computer Store" height="50">
+          <img src="/images/logo.png" alt="Computer Store" height="50" @error="handleImageError">
           <h4>Đăng ký tài khoản</h4>
           <p>Tham gia cộng đồng Computer Store</p>
+        </div>
+
+        <!-- Hiển thị lỗi -->
+        <div v-if="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          {{ errorMessage }}
+          <button type="button" class="btn-close" @click="errorMessage = ''"></button>
         </div>
 
         <form @submit.prevent="handleRegister">
@@ -13,7 +20,14 @@
             <label>Họ và tên <span class="text-danger">*</span></label>
             <div class="input-group">
               <span class="input-group-text"><i class="bi bi-person"></i></span>
-              <input type="text" class="form-control" v-model="form.name" placeholder="Nguyễn Văn A" required>
+              <input 
+                type="text" 
+                class="form-control" 
+                v-model="form.name" 
+                placeholder="Nguyễn Văn A" 
+                required
+                :disabled="loading"
+              >
             </div>
           </div>
 
@@ -21,7 +35,14 @@
             <label>Email <span class="text-danger">*</span></label>
             <div class="input-group">
               <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-              <input type="email" class="form-control" v-model="form.email" placeholder="example@email.com" required>
+              <input 
+                type="email" 
+                class="form-control" 
+                v-model="form.email" 
+                placeholder="example@email.com" 
+                required
+                :disabled="loading"
+              >
             </div>
           </div>
 
@@ -29,7 +50,13 @@
             <label>Số điện thoại</label>
             <div class="input-group">
               <span class="input-group-text"><i class="bi bi-phone"></i></span>
-              <input type="tel" class="form-control" v-model="form.phone" placeholder="0123456789">
+              <input 
+                type="tel" 
+                class="form-control" 
+                v-model="form.phone" 
+                placeholder="0123456789"
+                :disabled="loading"
+              >
             </div>
           </div>
 
@@ -37,34 +64,70 @@
             <label>Mật khẩu <span class="text-danger">*</span></label>
             <div class="input-group">
               <span class="input-group-text"><i class="bi bi-lock"></i></span>
-              <input :type="showPassword ? 'text' : 'password'" class="form-control" v-model="form.password" placeholder="Ít nhất 6 ký tự" required>
-              <button class="btn btn-outline-secondary" type="button" @click="showPassword = !showPassword">
+              <input 
+                :type="showPassword ? 'text' : 'password'" 
+                class="form-control" 
+                v-model="form.password" 
+                placeholder="Ít nhất 6 ký tự" 
+                required
+                :disabled="loading"
+              >
+              <button 
+                class="btn btn-outline-secondary" 
+                type="button" 
+                @click="showPassword = !showPassword"
+                :disabled="loading"
+              >
                 <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
               </button>
             </div>
+            <small class="text-muted">Mật khẩu phải có ít nhất 6 ký tự</small>
           </div>
 
           <div class="form-group">
             <label>Xác nhận mật khẩu <span class="text-danger">*</span></label>
             <div class="input-group">
               <span class="input-group-text"><i class="bi bi-shield-lock"></i></span>
-              <input :type="showConfirmPassword ? 'text' : 'password'" class="form-control" v-model="form.confirmPassword" placeholder="Nhập lại mật khẩu" required>
-              <button class="btn btn-outline-secondary" type="button" @click="showConfirmPassword = !showConfirmPassword">
+              <input 
+                :type="showConfirmPassword ? 'text' : 'password'" 
+                class="form-control" 
+                v-model="form.confirmPassword" 
+                placeholder="Nhập lại mật khẩu" 
+                required
+                :disabled="loading"
+              >
+              <button 
+                class="btn btn-outline-secondary" 
+                type="button" 
+                @click="showConfirmPassword = !showConfirmPassword"
+                :disabled="loading"
+              >
                 <i :class="showConfirmPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
               </button>
             </div>
           </div>
 
           <div class="form-check mb-3">
-            <input type="checkbox" class="form-check-input" id="terms" v-model="form.agreeTerms" required>
+            <input 
+              type="checkbox" 
+              class="form-check-input" 
+              id="terms" 
+              v-model="form.agreeTerms" 
+              required
+              :disabled="loading"
+            >
             <label class="form-check-label" for="terms">
               Tôi đồng ý với <a href="#" class="text-primary">Điều khoản sử dụng</a>
             </label>
           </div>
 
-          <button type="submit" class="btn btn-primary w-100" :disabled="loading">
+          <button 
+            type="submit" 
+            class="btn btn-primary w-100" 
+            :disabled="loading"
+          >
             <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-            Đăng ký
+            {{ loading ? 'Đang xử lý...' : 'Đăng ký' }}
           </button>
         </form>
 
@@ -97,35 +160,60 @@ const form = reactive({
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
 const loading = ref(false);
+const errorMessage = ref('');
+
+const handleImageError = (event) => {
+  event.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect width="50" height="50" fill="%232563eb"/%3E%3Ctext x="25" y="32" text-anchor="middle" fill="white" font-size="20" font-weight="bold"%3ECS%3C/text%3E%3C/svg%3E';
+};
 
 const handleRegister = async () => {
+  // Reset error
+  errorMessage.value = '';
+
   // Validate
+  if (!form.name || !form.email || !form.password || !form.confirmPassword) {
+    errorMessage.value = 'Vui lòng điền đầy đủ thông tin bắt buộc';
+    return;
+  }
+
   if (form.password !== form.confirmPassword) {
-    toast.error('Mật khẩu xác nhận không khớp');
+    errorMessage.value = 'Mật khẩu xác nhận không khớp';
     return;
   }
 
   if (form.password.length < 6) {
-    toast.error('Mật khẩu phải có ít nhất 6 ký tự');
+    errorMessage.value = 'Mật khẩu phải có ít nhất 6 ký tự';
+    return;
+  }
+
+  if (!form.agreeTerms) {
+    errorMessage.value = 'Vui lòng đồng ý với điều khoản sử dụng';
     return;
   }
 
   loading.value = true;
-  const result = await authStore.register({
-    name: form.name,
-    email: form.email,
-    password: form.password,
-    phone: form.phone
-  });
-  
-  if (result.success) {
-    toast.success('Đăng ký thành công');
-    router.push('/');
-  } else {
-    toast.error(result.message || 'Đăng ký thất bại');
+
+  try {
+    const result = await authStore.register({
+      name: form.name,
+      email: form.email,
+      password: form.password,
+      phone: form.phone
+    });
+
+    if (result.success) {
+      // Đăng ký thành công, chuyển về trang chủ
+      toast.success('Đăng ký thành công!');
+      router.push('/');
+    } else {
+      errorMessage.value = result.message || 'Đăng ký thất bại';
+    }
+  } catch (error) {
+    console.error('Register error:', error);
+    errorMessage.value = 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+  } finally {
+    loading.value = false;
   }
-  
-  loading.value = false;
 };
 </script>
 
@@ -179,6 +267,12 @@ const handleRegister = async () => {
   font-weight: 500;
   margin-bottom: 0.5rem;
   display: block;
+}
+
+.alert {
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
 }
 
 .auth-footer {

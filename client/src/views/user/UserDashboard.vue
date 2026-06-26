@@ -13,6 +13,7 @@
               >
               <h6 class="user-name">{{ user?.name }}</h6>
               <span class="user-email">{{ user?.email }}</span>
+              <span class="badge bg-primary mt-2">{{ user?.role === 'admin' ? 'Admin' : 'Thành viên' }}</span>
             </div>
             <ul class="dashboard-menu">
               <li>
@@ -38,6 +39,11 @@
               <li>
                 <router-link to="/dashboard/reviews">
                   <i class="bi bi-chat-dots"></i> Đánh giá của tôi
+                </router-link>
+              </li>
+              <li>
+                <router-link to="/dashboard/wishlist">
+                  <i class="bi bi-heart"></i> Sản phẩm yêu thích
                 </router-link>
               </li>
               <li>
@@ -157,10 +163,10 @@
                   </router-link>
                 </div>
                 <div class="col-md-4">
-                  <a href="#" class="quick-action" @click.prevent="handleLogout">
-                    <i class="bi bi-box-arrow-right text-danger"></i>
-                    <span>Đăng xuất</span>
-                  </a>
+                  <router-link to="/dashboard/orders" class="quick-action">
+                    <i class="bi bi-box"></i>
+                    <span>Xem đơn hàng</span>
+                  </router-link>
                 </div>
               </div>
             </div>
@@ -202,7 +208,6 @@ const loadOrders = async () => {
   if (result.success) {
     recentOrders.value = result.data.orders || [];
     
-    // Calculate stats
     const orders = result.data.orders || [];
     orderStats.value = {
       total: orders.length,
@@ -241,7 +246,7 @@ onMounted(() => {
   background: white;
   border-radius: 12px;
   padding: 2rem 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   position: sticky;
   top: 100px;
 }
@@ -314,23 +319,22 @@ onMounted(() => {
   background: white;
   border-radius: 12px;
   padding: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
-/* Stats */
 .stat-card {
   background: white;
   border-radius: 12px;
   padding: 1.5rem;
   text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   border: 1px solid #e2e8f0;
   transition: all 0.3s;
 }
 
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
 }
 
 .stat-icon {
@@ -344,25 +348,10 @@ onMounted(() => {
   margin: 0 auto 0.5rem;
 }
 
-.stat-icon.primary {
-  background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
-}
-
-.stat-icon.success {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-}
-
-.stat-icon.warning {
-  background: rgba(245, 158, 11, 0.1);
-  color: #f59e0b;
-}
-
-.stat-icon.danger {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-}
+.stat-icon.primary { background: rgba(37,99,235,0.1); color: #2563eb; }
+.stat-icon.success { background: rgba(16,185,129,0.1); color: #10b981; }
+.stat-icon.warning { background: rgba(245,158,11,0.1); color: #f59e0b; }
+.stat-icon.danger { background: rgba(239,68,68,0.1); color: #ef4444; }
 
 .stat-number {
   font-size: 1.5rem;
@@ -375,7 +364,6 @@ onMounted(() => {
   color: #94a3b8;
 }
 
-/* Section Card */
 .section-card {
   background: white;
   border-radius: 12px;
@@ -383,7 +371,6 @@ onMounted(() => {
   border: 1px solid #e2e8f0;
 }
 
-/* Table */
 .dashboard-table {
   width: 100%;
   border-collapse: collapse;
@@ -417,7 +404,6 @@ onMounted(() => {
   padding: 4px 12px;
 }
 
-/* Quick Actions */
 .quick-action {
   display: flex;
   align-items: center;
@@ -444,7 +430,6 @@ onMounted(() => {
   font-weight: 500;
 }
 
-/* Responsive */
 @media (max-width: 992px) {
   .dashboard-sidebar {
     position: relative;
@@ -460,21 +445,6 @@ onMounted(() => {
   
   .stat-number {
     font-size: 1.2rem;
-  }
-}
-
-@media (max-width: 576px) {
-  .dashboard-content {
-    padding: 1rem;
-  }
-  
-  .dashboard-table {
-    font-size: 0.875rem;
-  }
-  
-  .dashboard-table th,
-  .dashboard-table td {
-    padding: 0.5rem;
   }
 }
 </style>

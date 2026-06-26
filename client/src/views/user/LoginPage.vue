@@ -3,9 +3,23 @@
     <div class="auth-container">
       <div class="auth-card">
         <div class="auth-header">
-          <img src="/images/logo.png" alt="Computer Store" height="50">
+          <img src="/images/logo.png" alt="Computer Store" height="50" @error="handleImageError">
           <h4>Đăng nhập</h4>
           <p>Chào mừng bạn quay trở lại</p>
+        </div>
+
+        <!-- Hiển thị lỗi -->
+        <div v-if="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          {{ errorMessage }}
+          <button type="button" class="btn-close" @click="errorMessage = ''"></button>
+        </div>
+
+        <!-- Hiển thị thành công -->
+        <div v-if="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
+          <i class="bi bi-check-circle me-2"></i>
+          {{ successMessage }}
+          <button type="button" class="btn-close" @click="successMessage = ''"></button>
         </div>
 
         <form @submit.prevent="handleLogin">
@@ -13,7 +27,14 @@
             <label>Email</label>
             <div class="input-group">
               <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-              <input type="email" class="form-control" v-model="form.email" placeholder="example@email.com" required>
+              <input 
+                type="email" 
+                class="form-control" 
+                v-model="form.email" 
+                placeholder="example@email.com" 
+                required
+                :disabled="loading"
+              >
             </div>
           </div>
 
@@ -21,8 +42,20 @@
             <label>Mật khẩu</label>
             <div class="input-group">
               <span class="input-group-text"><i class="bi bi-lock"></i></span>
-              <input :type="showPassword ? 'text' : 'password'" class="form-control" v-model="form.password" placeholder="Nhập mật khẩu" required>
-              <button class="btn btn-outline-secondary" type="button" @click="showPassword = !showPassword">
+              <input 
+                :type="showPassword ? 'text' : 'password'" 
+                class="form-control" 
+                v-model="form.password" 
+                placeholder="Nhập mật khẩu" 
+                required
+                :disabled="loading"
+              >
+              <button 
+                class="btn btn-outline-secondary" 
+                type="button" 
+                @click="showPassword = !showPassword"
+                :disabled="loading"
+              >
                 <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
               </button>
             </div>
@@ -36,27 +69,18 @@
             <a href="#" class="forgot-link">Quên mật khẩu?</a>
           </div>
 
-          <button type="submit" class="btn btn-primary w-100" :disabled="loading">
+          <button 
+            type="submit" 
+            class="btn btn-primary w-100" 
+            :disabled="loading"
+          >
             <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-            Đăng nhập
+            {{ loading ? 'Đang xử lý...' : 'Đăng nhập' }}
           </button>
         </form>
 
         <div class="auth-footer">
           <p>Chưa có tài khoản? <router-link to="/register">Đăng ký ngay</router-link></p>
-        </div>
-
-        <div class="auth-divider">
-          <span>Hoặc</span>
-        </div>
-
-        <div class="social-login">
-          <button class="btn btn-outline-danger w-100">
-            <i class="bi bi-google me-2"></i> Đăng nhập với Google
-          </button>
-          <button class="btn btn-outline-primary w-100">
-            <i class="bi bi-facebook me-2"></i> Đăng nhập với Facebook
-          </button>
         </div>
       </div>
     </div>
@@ -73,26 +97,60 @@ const router = useRouter();
 const authStore = useAuthStore();
 
 const form = reactive({
-  email: '',
-  password: '',
+  email: 'admin@computerstore.com',
+  password: 'admin123',
   remember: false
 });
 
 const showPassword = ref(false);
 const loading = ref(false);
+const errorMessage = ref('');
+const successMessage = ref('');
+
+const handleImageError = (event) => {
+  event.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect width="50" height="50" fill="%232563eb"/%3E%3Ctext x="25" y="32" text-anchor="middle" fill="white" font-size="20" font-weight="bold"%3ECS%3C/text%3E%3C/svg%3E';
+};
 
 const handleLogin = async () => {
-  loading.value = true;
-  const result = await authStore.login(form.email, form.password);
-  
-  if (result.success) {
-    toast.success('Đăng nhập thành công');
-    router.push('/');
-  } else {
-    toast.error(result.message || 'Đăng nhập thất bại');
+  // Reset messages
+  errorMessage.value = '';
+  successMessage.value = '';
+
+  // Validate
+  if (!form.email || !form.password) {
+    errorMessage.value = 'Vui lòng nhập đầy đủ email và mật khẩu';
+    return;
   }
-  
-  loading.value = false;
+
+  loading.value = true;
+
+  try {
+    console.log('🔐 Attempting login with:', form.email);
+    
+    const result = await authStore.login(form.email, form.password);
+
+    console.log('📦 Login result:', result);
+
+    if (result.success) {
+      successMessage.value = 'Đăng nhập thành công! Đang chuyển hướng...';
+      toast.success('Đăng nhập thành công!');
+      
+      // Chuyển hướng sau 1 giây
+      setTimeout(() => {
+        const redirect = router.currentRoute.value.query.redirect || '/';
+        router.push(redirect);
+      }, 1000);
+    } else {
+      errorMessage.value = result.message || 'Đăng nhập thất bại';
+      toast.error(errorMessage.value);
+    }
+  } catch (error) {
+    console.error('❌ Login error:', error);
+    errorMessage.value = 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+    toast.error(errorMessage.value);
+  } finally {
+    loading.value = false;
+  }
 };
 </script>
 
@@ -180,37 +238,10 @@ const handleLogin = async () => {
   text-decoration: underline;
 }
 
-.auth-divider {
-  display: flex;
-  align-items: center;
-  margin: 1.5rem 0;
-  color: #94a3b8;
-}
-
-.auth-divider::before,
-.auth-divider::after {
-  content: '';
-  flex: 1;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.auth-divider::before {
-  margin-right: 10px;
-}
-
-.auth-divider::after {
-  margin-left: 10px;
-}
-
-.social-login {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.social-login .btn {
-  padding: 10px;
-  font-weight: 500;
+.alert {
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
 }
 
 @keyframes slideUp {

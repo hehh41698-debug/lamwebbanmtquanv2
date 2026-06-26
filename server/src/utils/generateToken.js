@@ -1,37 +1,32 @@
 const jwt = require('jsonwebtoken');
 
 // Generate Access Token
-exports.generateToken = (userId) => {
+const generateToken = (userId) => {
+  const secret = process.env.JWT_SECRET || 'your_secret_key_here_123456';
+  const expiresIn = process.env.JWT_EXPIRE || '7d';
+  
+  console.log('🔑 Generating token for user:', userId);
+  
   return jwt.sign(
     { id: userId },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    secret,
+    { expiresIn: expiresIn }
   );
 };
 
 // Generate Refresh Token
-exports.generateRefreshToken = (userId) => {
+const generateRefreshToken = (userId) => {
+  const secret = process.env.JWT_REFRESH_SECRET || 'your_refresh_secret_key_here_123456';
+  const expiresIn = process.env.JWT_REFRESH_EXPIRE || '30d';
+  
   return jwt.sign(
     { id: userId },
-    process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_REFRESH_EXPIRE || '30d' }
+    secret,
+    { expiresIn: expiresIn }
   );
 };
 
-// Verify Token
-exports.verifyToken = (token) => {
-  try {
-    return jwt.verify(token, process.env.JWT_SECRET);
-  } catch (error) {
-    return null;
-  }
-};
-
-// Verify Refresh Token
-exports.verifyRefreshToken = (token) => {
-  try {
-    return jwt.verify(token, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET);
-  } catch (error) {
-    return null;
-  }
+module.exports = {
+  generateToken,
+  generateRefreshToken
 };

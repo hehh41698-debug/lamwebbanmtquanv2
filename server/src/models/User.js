@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema({
   },
   avatar: {
     type: String,
-    default: 'default-avatar.png'
+    default: '/images/default-avatar.png'
   },
   role: {
     type: String,
@@ -54,16 +54,30 @@ const userSchema = new mongoose.Schema({
 // Hash password before saving
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {
+    console.log('⚠️ Password not modified, skipping hash');
     return next();
   }
+  console.log('🔑 Hashing password...');
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  console.log('✅ Password hashed');
   next();
 });
 
-// Compare password method
+// Compare password method - FIXED
 userSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+  try {
+    console.log('🔍 Comparing passwords...');
+    console.log('📦 Stored hash:', this.password);
+    console.log('🔑 Candidate:', candidatePassword);
+    
+    const isMatch = await bcrypt.compare(candidatePassword, this.password);
+    console.log('✅ Compare result:', isMatch);
+    return isMatch;
+  } catch (error) {
+    console.error('❌ Compare password error:', error);
+    return false;
+  }
 };
 
 module.exports = mongoose.model('User', userSchema);

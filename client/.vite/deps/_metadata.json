@@ -1,86 +1,92 @@
 {
-  "hash": "ede0d6a8",
-  "browserHash": "ecf37b03",
+  "hash": "3dcf7954",
+  "browserHash": "6699772b",
   "optimized": {
     "vue": {
       "src": "../../node_modules/vue/dist/vue.runtime.esm-bundler.js",
       "file": "vue.js",
-      "fileHash": "7c234a2f",
+      "fileHash": "fb338ce7",
       "needsInterop": false
     },
     "vue-router": {
       "src": "../../node_modules/vue-router/dist/vue-router.mjs",
       "file": "vue-router.js",
-      "fileHash": "acea9da7",
+      "fileHash": "46d0ed18",
       "needsInterop": false
     },
     "pinia": {
       "src": "../../node_modules/pinia/dist/pinia.mjs",
       "file": "pinia.js",
-      "fileHash": "49dac2df",
+      "fileHash": "cf54aa58",
       "needsInterop": false
     },
     "axios": {
       "src": "../../node_modules/axios/index.js",
       "file": "axios.js",
-      "fileHash": "c36c4f94",
+      "fileHash": "1154be06",
       "needsInterop": false
     },
     "bootstrap": {
       "src": "../../node_modules/bootstrap/dist/js/bootstrap.esm.js",
       "file": "bootstrap.js",
-      "fileHash": "7284a653",
+      "fileHash": "3203c1ae",
       "needsInterop": false
     },
     "@popperjs/core": {
       "src": "../../node_modules/@popperjs/core/lib/index.js",
       "file": "@popperjs_core.js",
-      "fileHash": "489abc0f",
+      "fileHash": "b7159568",
       "needsInterop": false
     },
     "vue3-toastify": {
       "src": "../../node_modules/vue3-toastify/dist/index.mjs",
       "file": "vue3-toastify.js",
-      "fileHash": "9e1dfa48",
+      "fileHash": "a8d5e1b4",
       "needsInterop": false
     },
     "vue3-carousel": {
       "src": "../../node_modules/vue3-carousel/dist/carousel.es.js",
       "file": "vue3-carousel.js",
-      "fileHash": "44f9971e",
+      "fileHash": "907dd2ea",
       "needsInterop": false
     },
     "@vuelidate/core": {
       "src": "../../node_modules/@vuelidate/core/dist/index.mjs",
       "file": "@vuelidate_core.js",
-      "fileHash": "5c217dbd",
+      "fileHash": "ec9bb10d",
       "needsInterop": false
     },
     "@vuelidate/validators": {
       "src": "../../node_modules/@vuelidate/validators/dist/index.mjs",
       "file": "@vuelidate_validators.js",
-      "fileHash": "d54b3b9d",
+      "fileHash": "f982c1d7",
       "needsInterop": false
     },
     "bootstrap/dist/js/bootstrap.bundle.min.js": {
       "src": "../../node_modules/bootstrap/dist/js/bootstrap.bundle.min.js",
       "file": "bootstrap_dist_js_bootstrap__bundle__min__js.js",
-      "fileHash": "24feabd2",
+      "fileHash": "584b99f9",
       "needsInterop": true
+    },
+    "chart.js": {
+      "src": "../../node_modules/chart.js/dist/chart.js",
+      "file": "chart__js.js",
+      "fileHash": "fb8d3867",
+      "needsInterop": false
     }
   },
   "chunks": {
     "chunk-AYVSL3LM": {
       "file": "chunk-AYVSL3LM.js"
     },
-    "chunk-JTIKGBJX": {
-      "file": "chunk-JTIKGBJX.js"
+    "chunk-MF3HQI5M": {
+      "file": "chunk-MF3HQI5M.js"
     },
     "chunk-COGGOE6B": {
       "file": "chunk-COGGOE6B.js"
     },
-    "chunk-6TJCVOLN": {
-      "file": "chunk-6TJCVOLN.js"
+    "chunk-34KZWS7D": {
+      "file": "chunk-34KZWS7D.js"
     }
   }
 }

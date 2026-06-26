@@ -1,27 +1,20 @@
 const express = require('express');
 const router = express.Router();
+const { 
+  getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory
+} = require('../controllers/categoryController');
+const { authenticate } = require('../middleware/auth');
+const { adminOnly } = require('../middleware/auth');
 
-// Tạo các function giả để test
-const getCategories = (req, res) => {
-  res.json({ success: true, categories: [] });
-};
-
-const createCategory = (req, res) => {
-  res.json({ success: true, message: 'Category created' });
-};
-
-const updateCategory = (req, res) => {
-  res.json({ success: true, message: 'Category updated' });
-};
-
-const deleteCategory = (req, res) => {
-  res.json({ success: true, message: 'Category deleted' });
-};
-
-// Routes
+// Public routes
 router.get('/', getCategories);
-router.post('/', createCategory);
-router.put('/:id', updateCategory);
-router.delete('/:id', deleteCategory);
+
+// Admin routes
+router.post('/', authenticate, adminOnly, createCategory);
+router.put('/:id', authenticate, adminOnly, updateCategory);
+router.delete('/:id', authenticate, adminOnly, deleteCategory);
 
 module.exports = router;

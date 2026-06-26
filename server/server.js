@@ -40,7 +40,7 @@ app.use(compression());
 
 // CORS
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -53,12 +53,27 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 // Passport
 app.use(passport.initialize());
 
-// Rate limiting
+// ============================================
+// RATE LIMITING - TĂNG GIỚI HẠN CHO DEVELOPMENT
+// ============================================
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
-  message: 'Too many requests from this IP, please try again later.'
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // 100 cho production, 1000 cho development
+  message: {
+    success: false,
+    message: 'Quá nhiều yêu cầu, vui lòng thử lại sau.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Bỏ qua rate limit cho các route test
+    if (req.path.startsWith('/test-')) return true;
+    // Bỏ qua rate limit cho health check
+    if (req.path === '/health') return true;
+    return false;
+  }
 });
+
 app.use('/api', limiter);
 
 // ============================================
@@ -71,6 +86,7 @@ app.get('/', (req, res) => {
     success: true,
     message: '🚀 Computer Store API Server is running!',
     version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
     endpoints: {
       health: '/health',
       api: {
@@ -92,7 +108,9 @@ app.get('/health', (req, res) => {
     status: 'OK',
     message: 'Server is running',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
@@ -188,7 +206,8 @@ app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: 'Route not found',
-    path: req.originalUrl
+    path: req.originalUrl,
+    method: req.method
   });
 });
 
@@ -203,24 +222,29 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/comput
 
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
-  useUnifiedTopology: true
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
 })
 .then(() => {
   console.log('✅ Connected to MongoDB');
   console.log(`📊 Database: ${mongoose.connection.db.databaseName}`);
+  console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
   
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
-    console.log(`🚀 Server is running on port ${PORT}`);
+    console.log(`\n🚀 Server is running on port ${PORT}`);
     console.log(`📍 http://localhost:${PORT}`);
     console.log(`📋 API Documentation: http://localhost:${PORT}/`);
     console.log(`🔍 Test DB: http://localhost:${PORT}/test-db`);
     console.log(`📦 Test Populate: http://localhost:${PORT}/test-populate`);
+    console.log(`❤️  Health Check: http://localhost:${PORT}/health\n`);
   });
 })
 .catch(err => {
   console.error('❌ MongoDB connection error:', err.message);
   console.error('💡 Make sure MongoDB is running!');
+  console.error('💡 Try: net start MongoDB (Windows) or sudo systemctl start mongod (Linux)');
   process.exit(1);
 });
 
@@ -238,7 +262,8 @@ mongoose.connection.on('reconnected', () => {
 });
 
 // Graceful shutdown
-process.on('SIGINT', async () => {
+const gracefulShutdown = async () => {
+  console.log('\n🔄 Shutting down gracefully...');
   try {
     await mongoose.connection.close();
     console.log('✅ MongoDB connection closed');
@@ -247,6 +272,21 @@ process.on('SIGINT', async () => {
     console.error('❌ Error closing MongoDB connection:', error);
     process.exit(1);
   }
+};
+
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  gracefulShutdown();
+});
+
+// Handle unhandled rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection:', reason);
+  gracefulShutdown();
 });
 
 module.exports = app;

@@ -1,8 +1,12 @@
 <template>
   <div class="product-list">
-    <!-- DEBUG: Hiển thị trạng thái -->
-    <div class="debug-info" style="background: #e0f2fe; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #7dd3fc;">
-      <strong>🔍 Debug:</strong>
+    <!-- Debug Info -->
+    <div 
+      v-if="showDebug" 
+      class="debug-info"
+      style="background: #e0f2fe; border: 1px solid #7dd3fc; color: #0369a1; padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;"
+    >
+      <strong>🔍 Debug:</strong> 
       Sản phẩm: {{ products.length }} | 
       Đang tải: {{ loading }} | 
       Tổng: {{ total }} |
@@ -35,6 +39,7 @@
 
     <!-- Product Grid -->
     <div v-else>
+      <!-- View Options -->
       <div class="product-list-header">
         <div class="product-count">
           <span class="fw-bold">{{ products.length }}</span> sản phẩm
@@ -78,7 +83,7 @@
         >
           <div class="list-view-image">
             <img 
-              :src="product.images[0] || '/images/no-image.png'" 
+              :src="product.images?.[0] || '/images/no-image.png'" 
               :alt="product.name"
               @error="handleImageError"
             >
@@ -95,7 +100,7 @@
                   v-for="n in 5" 
                   :key="n" 
                   class="bi bi-star-fill"
-                  :class="{ 'text-warning': n <= Math.round(product.rating), 'text-secondary': n > Math.round(product.rating) }"
+                  :class="{ 'text-warning': n <= Math.round(product.rating || 0), 'text-secondary': n > Math.round(product.rating || 0) }"
                 ></i>
               </div>
               <span class="rating-count">({{ product.rating || 0 }})</span>
@@ -204,15 +209,14 @@ const props = defineProps({
   limit: {
     type: Number,
     default: 12
+  },
+  showDebug: {
+    type: Boolean,
+    default: true
   }
 });
 
 const emit = defineEmits(['page-change', 'quick-view', 'reset-filters']);
-
-// Debug log khi props thay đổi
-watch(() => props.products, (newVal) => {
-  console.log('📦 ProductList received products:', newVal.length);
-}, { immediate: true, deep: true });
 
 const router = useRouter();
 const cartStore = useCartStore();
@@ -287,16 +291,63 @@ const handleImageError = (event) => {
   event.target.src = '/images/no-image.png';
 };
 
+watch(() => props.products, (newVal) => {
+  console.log('📦 ProductList received products:', newVal?.length || 0);
+}, { immediate: true, deep: true });
+
 watch(() => props.currentPage, () => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
 onMounted(() => {
   loadViewMode();
-  console.log('🔍 ProductList mounted, products:', props.products.length);
+  console.log('🔍 ProductList mounted, products:', props.products?.length || 0);
 });
 </script>
 
 <style scoped>
-/* ... giữ nguyên styles ... */
+.product-list { width: 100%; }
+.skeleton-card { background: white; border-radius: 12px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.skeleton-image { width: 100%; padding-top: 75%; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+.skeleton-text { height: 12px; margin-top: 12px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; }
+.skeleton-text.short { width: 60%; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.empty-state { background: white; border-radius: 12px; padding: 3rem 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.empty-state-icon { margin-bottom: 1rem; }
+.empty-state .btn { margin-top: 1rem; }
+.product-list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem; }
+.product-count { font-size: 0.95rem; color: #4a5568; }
+.view-options { display: flex; gap: 4px; }
+.view-options .btn { padding: 4px 10px; border-radius: 6px; }
+.view-options .btn.active { background: #2563eb; color: white; border-color: #2563eb; }
+.view-options .btn:hover:not(.active) { background: #f8fafc; }
+.list-view { display: flex; flex-direction: column; gap: 1.5rem; }
+.list-view-item { display: flex; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: all 0.3s; }
+.list-view-item:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.list-view-image { width: 200px; min-height: 200px; flex-shrink: 0; background: #f8fafc; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.list-view-image img { width: 100%; height: 100%; object-fit: contain; max-height: 180px; }
+.list-view-info { flex: 1; padding: 1.5rem; display: flex; flex-direction: column; }
+.list-view-title { font-size: 1.1rem; font-weight: 600; color: #1a202c; margin-bottom: 0.5rem; }
+.list-view-meta { display: flex; gap: 1rem; margin-bottom: 0.75rem; font-size: 0.875rem; color: #94a3b8; }
+.list-view-meta .brand { font-weight: 500; color: #4a5568; }
+.list-view-rating { display: flex; align-items: center; gap: 6px; margin-bottom: 0.75rem; }
+.list-view-rating .stars { display: flex; gap: 2px; }
+.list-view-rating .stars i { font-size: 14px; }
+.list-view-description { color: #64748b; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1rem; flex: 1; }
+.list-view-bottom { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; }
+.list-view-price { display: flex; align-items: center; gap: 10px; }
+.list-view-price .current-price { font-size: 1.25rem; font-weight: 700; color: #2563eb; }
+.list-view-price .old-price { font-size: 0.95rem; color: #94a3b8; text-decoration: line-through; }
+.list-view-price .discount-badge { background: #ef4444; color: white; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+.list-view-actions { display: flex; gap: 0.5rem; }
+.pagination-wrapper { display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; flex-wrap: wrap; gap: 1rem; }
+.pagination { display: flex; gap: 4px; margin: 0; }
+.pagination .page-link { display: flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; padding: 0 0.75rem; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #4a5568; transition: all 0.3s; cursor: pointer; }
+.pagination .page-link:hover { background: #f8fafc; border-color: #2563eb; }
+.pagination .page-item.active .page-link { background: #2563eb; border-color: #2563eb; color: white; }
+.pagination .page-item.disabled .page-link { opacity: 0.5; cursor: not-allowed; }
+.pagination-info { font-size: 0.875rem; color: #94a3b8; }
+@media (max-width: 992px) { .list-view-image { width: 150px; min-height: 150px; } .list-view-image img { max-height: 130px; } }
+@media (max-width: 768px) { .list-view-item { flex-direction: column; } .list-view-image { width: 100%; min-height: 120px; padding: 0.5rem; } .list-view-image img { max-height: 100px; } .list-view-info { padding: 1rem; } .list-view-bottom { flex-direction: column; align-items: stretch; } .list-view-actions { flex-direction: column; } .list-view-actions .btn { width: 100%; } .pagination-wrapper { flex-direction: column; align-items: center; } }
+@media (max-width: 576px) { .product-list-header { flex-direction: column; align-items: stretch; } .product-count { text-align: center; } .view-options { justify-content: center; } }
 </style>

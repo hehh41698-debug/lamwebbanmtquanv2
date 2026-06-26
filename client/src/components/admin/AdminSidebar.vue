@@ -1,178 +1,182 @@
 <template>
-  <aside class="admin-sidebar" :class="{ collapsed: isCollapsed }">
-    <div class="admin-sidebar-brand">
-      <img src="/images/logo-white.png" alt="Computer Store">
-      <span v-show="!isCollapsed">Admin</span>
+  <aside class="admin-sidebar" :class="{ open: isOpen }">
+    <div class="sidebar-brand">
+      <div class="brand-icon">
+        <i class="bi bi-laptop fs-4"></i>
+      </div>
+      <span>ComputerStore</span>
     </div>
-    
-    <ul class="admin-sidebar-menu">
-      <li>
-        <router-link to="/admin" exact>
-          <i class="bi bi-speedometer2"></i>
-          <span v-show="!isCollapsed">Dashboard</span>
-        </router-link>
-      </li>
-      <li>
-        <router-link to="/admin/products">
-          <i class="bi bi-box"></i>
-          <span v-show="!isCollapsed">Sản phẩm</span>
-        </router-link>
-      </li>
-      <li>
-        <router-link to="/admin/orders">
-          <i class="bi bi-receipt"></i>
-          <span v-show="!isCollapsed">Đơn hàng</span>
-          <span class="badge bg-danger" v-if="pendingOrders > 0">{{ pendingOrders }}</span>
-        </router-link>
-      </li>
-      <li>
-        <router-link to="/admin/users">
-          <i class="bi bi-people"></i>
-          <span v-show="!isCollapsed">Người dùng</span>
-        </router-link>
-      </li>
-      <li>
-        <router-link to="/admin/categories">
-          <i class="bi bi-tags"></i>
-          <span v-show="!isCollapsed">Danh mục</span>
-        </router-link>
-      </li>
-      <li>
-        <router-link to="/admin/reviews">
-          <i class="bi bi-chat-dots"></i>
-          <span v-show="!isCollapsed">Đánh giá</span>
-          <span class="badge bg-warning" v-if="pendingReviews > 0">{{ pendingReviews }}</span>
-        </router-link>
-      </li>
-    </ul>
-    
-    <div class="admin-sidebar-footer">
-      <button class="btn btn-outline-light btn-sm w-100" @click="toggleCollapse">
-        <i :class="isCollapsed ? 'bi bi-chevron-right' : 'bi bi-chevron-left'"></i>
-        <span v-show="!isCollapsed">Thu gọn</span>
+
+    <nav class="sidebar-nav">
+      <router-link to="/admin" exact>
+        <i class="bi bi-speedometer2"></i>
+        <span>Dashboard</span>
+      </router-link>
+
+      <router-link to="/admin/products">
+        <i class="bi bi-box"></i>
+        <span>Sản phẩm</span>
+      </router-link>
+
+      <router-link to="/admin/orders">
+        <i class="bi bi-receipt"></i>
+        <span>Đơn hàng</span>
+        <span v-if="pendingOrders > 0" class="badge bg-danger">{{ pendingOrders }}</span>
+      </router-link>
+
+      <router-link to="/admin/users">
+        <i class="bi bi-people"></i>
+        <span>Người dùng</span>
+      </router-link>
+
+      <router-link to="/admin/categories">
+        <i class="bi bi-tags"></i>
+        <span>Danh mục</span>
+      </router-link>
+
+      <router-link to="/admin/reviews">
+        <i class="bi bi-chat-dots"></i>
+        <span>Đánh giá</span>
+        <span v-if="pendingReviews > 0" class="badge bg-warning">{{ pendingReviews }}</span>
+      </router-link>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="btn btn-outline-light btn-sm w-100" @click="handleLogout">
+        <i class="bi bi-box-arrow-right"></i> Đăng xuất
       </button>
     </div>
   </aside>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '../../store/auth';
+import { toast } from 'vue3-toastify';
 
-const isCollapsed = ref(false);
-const pendingOrders = ref(5);
-const pendingReviews = ref(3);
+const router = useRouter();
+const authStore = useAuthStore();
 
-const toggleCollapse = () => {
-  isCollapsed.value = !isCollapsed.value;
+const isOpen = ref(false);
+const pendingOrders = ref(0);
+const pendingReviews = ref(0);
+
+const handleLogout = async () => {
+  if (confirm('Bạn có chắc muốn đăng xuất?')) {
+    await authStore.logout();
+    toast.success('Đã đăng xuất');
+    router.push('/login');
+  }
 };
+
+defineExpose({ toggle: () => { isOpen.value = !isOpen.value; } });
 </script>
 
 <style scoped>
 .admin-sidebar {
-  width: 280px;
-  min-height: 100vh;
+  width: 260px;
   background: #0f172a;
-  color: white;
+  color: #cbd5e1;
+  display: flex;
+  flex-direction: column;
   position: sticky;
   top: 0;
   height: 100vh;
   overflow-y: auto;
   transition: all 0.3s ease;
+  flex-shrink: 0;
   z-index: 100;
-  display: flex;
-  flex-direction: column;
 }
 
-.admin-sidebar.collapsed {
-  width: 70px;
-}
-
-.admin-sidebar-brand {
+.sidebar-brand {
   padding: 1.5rem;
   display: flex;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.admin-sidebar-brand img {
-  height: 35px;
-}
-
-.admin-sidebar-brand span {
-  font-size: 1.2rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
   font-weight: 700;
+  font-size: 1.1rem;
+  color: white;
+  min-height: 70px;
 }
 
-.admin-sidebar-menu {
+.brand-icon {
+  width: 40px;
+  height: 40px;
+  background: #2563eb;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.2rem;
+}
+
+.sidebar-nav {
   flex: 1;
   padding: 1rem 0;
-  list-style: none;
-  margin: 0;
+  overflow-y: auto;
 }
 
-.admin-sidebar-menu li {
-  margin-bottom: 2px;
-}
-
-.admin-sidebar-menu li a {
+.sidebar-nav a {
   display: flex;
   align-items: center;
   padding: 0.75rem 1.5rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: #94a3b8;
   text-decoration: none;
   transition: all 0.3s;
   gap: 12px;
   border-left: 3px solid transparent;
-  position: relative;
 }
 
-.admin-sidebar-menu li a:hover {
-  background: rgba(255, 255, 255, 0.05);
+.sidebar-nav a:hover {
+  background: rgba(255,255,255,0.05);
   color: white;
 }
 
-.admin-sidebar-menu li a.router-link-active {
-  background: rgba(37, 99, 235, 0.15);
+.sidebar-nav a.router-link-active {
+  background: rgba(37,99,235,0.15);
   color: #60a5fa;
   border-left-color: #2563eb;
 }
 
-.admin-sidebar-menu li a i {
-  font-size: 1.2rem;
-  min-width: 24px;
+.sidebar-nav a i {
+  font-size: 1.1rem;
+  width: 24px;
   text-align: center;
+  flex-shrink: 0;
 }
 
-.admin-sidebar-menu li a .badge {
+.sidebar-nav a .badge {
   margin-left: auto;
   font-size: 11px;
+  padding: 2px 8px;
 }
 
-.admin-sidebar-footer {
+.sidebar-footer {
   padding: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255,255,255,0.05);
 }
 
-.admin-sidebar.collapsed .admin-sidebar-menu li a {
-  justify-content: center;
-  padding: 0.75rem;
+.admin-sidebar::-webkit-scrollbar {
+  width: 4px;
 }
-
-.admin-sidebar.collapsed .admin-sidebar-menu li a .badge {
-  display: none;
+.admin-sidebar::-webkit-scrollbar-track {
+  background: transparent;
 }
-
-.admin-sidebar.collapsed .admin-sidebar-brand span {
-  display: none;
+.admin-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius: 2px;
 }
 
 @media (max-width: 992px) {
   .admin-sidebar {
     position: fixed;
     transform: translateX(-100%);
+    z-index: 1000;
+    width: 280px;
   }
-  
   .admin-sidebar.open {
     transform: translateX(0);
   }

@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const productController = require('../controllers/productController');
+const { authenticate } = require('../middleware/auth');
+const { adminOnly } = require('../middleware/auth');
 
 // ============================================
-// TẤT CẢ ROUTE ĐỀU PUBLIC ĐỂ TEST
+// PUBLIC ROUTES
 // ============================================
-
-// GET routes
 router.get('/', productController.getProducts);
 router.get('/featured', productController.getFeaturedProducts);
 router.get('/best-sellers', productController.getBestSellers);
@@ -18,13 +18,13 @@ router.get('/slug/:slug', productController.getProductBySlug);
 router.get('/:id/similar', productController.getSimilarProducts);
 router.get('/:id', productController.getProductById);
 
-// POST, PUT, DELETE routes (tạm thời bỏ auth để test)
-router.post('/', productController.createProduct);
-router.put('/:id', productController.updateProduct);
-router.put('/:id/stock', productController.updateStock);
-router.delete('/:id', productController.deleteProduct);
-router.get('/admin/stats', productController.getProductStats);
-
-console.log('✅ Product routes loaded (public mode)');
+// ============================================
+// ADMIN ROUTES
+// ============================================
+router.post('/', authenticate, adminOnly, productController.createProduct);
+router.put('/:id', authenticate, adminOnly, productController.updateProduct);
+router.put('/:id/stock', authenticate, adminOnly, productController.updateStock);
+router.delete('/:id', authenticate, adminOnly, productController.deleteProduct);
+router.get('/admin/stats', authenticate, adminOnly, productController.getProductStats);
 
 module.exports = router;

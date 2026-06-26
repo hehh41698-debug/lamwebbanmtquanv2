@@ -1,22 +1,24 @@
 const express = require('express');
 const router = express.Router();
+const { body } = require('express-validator');
+const { register, login, getMe } = require('../controllers/authController');
+const { authenticate } = require('../middleware/auth');
 
-// Tạo các function giả để test
-const register = (req, res) => {
-  res.json({ success: true, message: 'User registered' });
-};
+// Validation rules
+const registerValidation = [
+  body('name').notEmpty().withMessage('Tên không được để trống'),
+  body('email').isEmail().withMessage('Email không hợp lệ'),
+  body('password').isLength({ min: 6 }).withMessage('Mật khẩu phải có ít nhất 6 ký tự')
+];
 
-const login = (req, res) => {
-  res.json({ success: true, message: 'User logged in' });
-};
-
-const getMe = (req, res) => {
-  res.json({ success: true, user: null });
-};
+const loginValidation = [
+  body('email').isEmail().withMessage('Email không hợp lệ'),
+  body('password').notEmpty().withMessage('Mật khẩu không được để trống')
+];
 
 // Routes
-router.post('/register', register);
-router.post('/login', login);
-router.get('/me', getMe);
+router.post('/register', registerValidation, register);
+router.post('/login', loginValidation, login);
+router.get('/me', authenticate, getMe);
 
 module.exports = router;
