@@ -1,37 +1,27 @@
 const express = require('express');
 const router = express.Router();
+const { 
+  createOrder,
+  getOrders,
+  getOrderById,
+  updateOrderStatus,
+  cancelOrder,
+  getOrderStats
+} = require('../controllers/orderController');
+const { authenticate } = require('../middleware/auth');
+const { adminOnly } = require('../middleware/auth');
 
-// Tạo các function giả để test
-const getOrders = (req, res) => {
-  res.json({ success: true, orders: [] });
-};
+// All routes require authentication
+router.use(authenticate);
 
-const getOrderById = (req, res) => {
-  res.json({ success: true, order: null });
-};
-
-const createOrder = (req, res) => {
-  res.json({ success: true, message: 'Order created' });
-};
-
-const updateOrderStatus = (req, res) => {
-  res.json({ success: true, message: 'Order status updated' });
-};
-
-const cancelOrder = (req, res) => {
-  res.json({ success: true, message: 'Order cancelled' });
-};
-
-const getOrderStats = (req, res) => {
-  res.json({ success: true, stats: {} });
-};
-
-// Routes
+// User routes
+router.post('/', createOrder);
 router.get('/', getOrders);
 router.get('/:id', getOrderById);
-router.post('/', createOrder);
-router.put('/:id/status', updateOrderStatus);
 router.put('/:id/cancel', cancelOrder);
-router.get('/admin/stats', getOrderStats);
+
+// Admin routes
+router.put('/:id/status', adminOnly, updateOrderStatus);
+router.get('/admin/stats', adminOnly, getOrderStats);
 
 module.exports = router;

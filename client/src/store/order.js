@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import api from '../api/auth';
+import { toast } from 'vue3-toastify';
 
 export const useOrderStore = defineStore('order', {
   state: () => ({
@@ -7,10 +8,16 @@ export const useOrderStore = defineStore('order', {
     order: null,
     loading: false,
     error: null,
-    stats: null
+    pagination: {
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 0
+    }
   }),
 
   actions: {
+    // Lấy danh sách đơn hàng
     async fetchOrders(params = {}) {
       this.loading = true;
       this.error = null;
@@ -25,8 +32,15 @@ export const useOrderStore = defineStore('order', {
         
         const response = await api.get(`/orders?${queryParams.toString()}`);
         this.orders = response.data.orders || [];
+        this.pagination = {
+          page: response.data.page || 1,
+          limit: response.data.limit || 10,
+          total: response.data.total || 0,
+          totalPages: response.data.totalPages || 1
+        };
         return { success: true, data: response.data };
       } catch (error) {
+        console.error('Fetch orders error:', error);
         this.error = error.response?.data?.message || 'Failed to fetch orders';
         return { success: false, error: this.error };
       } finally {
@@ -34,6 +48,7 @@ export const useOrderStore = defineStore('order', {
       }
     },
 
+    // Lấy chi tiết đơn hàng
     async fetchOrderById(id) {
       this.loading = true;
       this.error = null;
@@ -43,6 +58,7 @@ export const useOrderStore = defineStore('order', {
         this.order = response.data.order;
         return { success: true, data: response.data };
       } catch (error) {
+        console.error('Fetch order error:', error);
         this.error = error.response?.data?.message || 'Failed to fetch order';
         return { success: false, error: this.error };
       } finally {
@@ -50,15 +66,21 @@ export const useOrderStore = defineStore('order', {
       }
     },
 
+    // Tạo đơn hàng mới
     async createOrder(data) {
       this.loading = true;
       this.error = null;
       
       try {
+        console.log('📦 Creating order:', data);
         const response = await api.post('/orders', data);
+        console.log('✅ Order created:', response.data);
+        
         this.orders.unshift(response.data.order);
         return { success: true, data: response.data };
       } catch (error) {
+        console.error('❌ Create order error:', error);
+        console.error('❌ Error response:', error.response?.data);
         this.error = error.response?.data?.message || 'Failed to create order';
         return { success: false, error: this.error };
       } finally {
@@ -66,6 +88,7 @@ export const useOrderStore = defineStore('order', {
       }
     },
 
+    // Cập nhật trạng thái đơn hàng (Admin)
     async updateOrderStatus(id, status) {
       this.loading = true;
       this.error = null;
@@ -81,6 +104,7 @@ export const useOrderStore = defineStore('order', {
         }
         return { success: true, data: response.data };
       } catch (error) {
+        console.error('Update order status error:', error);
         this.error = error.response?.data?.message || 'Failed to update order status';
         return { success: false, error: this.error };
       } finally {
@@ -88,6 +112,7 @@ export const useOrderStore = defineStore('order', {
       }
     },
 
+    // Hủy đơn hàng (User)
     async cancelOrder(id) {
       this.loading = true;
       this.error = null;
@@ -103,6 +128,7 @@ export const useOrderStore = defineStore('order', {
         }
         return { success: true, data: response.data };
       } catch (error) {
+        console.error('Cancel order error:', error);
         this.error = error.response?.data?.message || 'Failed to cancel order';
         return { success: false, error: this.error };
       } finally {
@@ -110,6 +136,7 @@ export const useOrderStore = defineStore('order', {
       }
     },
 
+    // Lấy thống kê đơn hàng (Admin)
     async fetchOrderStats() {
       this.loading = true;
       this.error = null;
@@ -119,6 +146,7 @@ export const useOrderStore = defineStore('order', {
         this.stats = response.data.stats;
         return { success: true, data: response.data };
       } catch (error) {
+        console.error('Fetch stats error:', error);
         this.error = error.response?.data?.message || 'Failed to fetch stats';
         return { success: false, error: this.error };
       } finally {
