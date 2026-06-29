@@ -12,8 +12,9 @@
           </li>
           <li v-for="category in categories" :key="category._id">
             <router-link 
-              :to="{ path: '/products', query: { category: category.slug } }"
+              :to="{ path: '/products', query: { ...route.query, category: category.slug, page: 1 } }"
               :class="{ active: categoryFilter === category.slug }"
+              @click="handleCategoryClick(category.slug)"
             >
               <i :class="category.icon || 'bi bi-tag'"></i>
               {{ category.name }}
@@ -27,29 +28,16 @@
       <div class="sidebar-section">
         <h5 class="sidebar-title">Khoảng giá</h5>
         <div class="price-range">
-          <div class="price-slider">
-            <input 
-              type="range" 
-              class="form-range" 
-              v-model="priceRange"
-              min="0"
-              :max="maxPrice"
-              step="100000"
-            >
-            <div class="price-labels">
-              <span>{{ formatPrice(0) }}</span>
-              <span>{{ formatPrice(priceRange) }}</span>
-            </div>
-          </div>
           <div class="price-inputs">
             <div class="input-group">
               <span class="input-group-text">Từ</span>
               <input 
                 type="number" 
                 class="form-control" 
-                v-model="minPriceInput" 
+                v-model="minPrice" 
                 placeholder="0"
-                @change="applyPriceFilter"
+                min="0"
+                @keyup.enter="applyPriceFilter"
               >
             </div>
             <div class="input-group">
@@ -57,14 +45,18 @@
               <input 
                 type="number" 
                 class="form-control" 
-                v-model="maxPriceInput" 
-                :placeholder="formatPrice(maxPrice)"
-                @change="applyPriceFilter"
+                v-model="maxPrice" 
+                placeholder="10000000"
+                min="0"
+                @keyup.enter="applyPriceFilter"
               >
             </div>
           </div>
           <button class="btn btn-primary btn-sm w-100 mt-2" @click="applyPriceFilter">
             <i class="bi bi-search"></i> Áp dụng
+          </button>
+          <button class="btn btn-outline-secondary btn-sm w-100 mt-1" @click="clearPriceFilter">
+            <i class="bi bi-x-circle"></i> Xóa
           </button>
         </div>
       </div>
@@ -81,12 +73,12 @@
             <input 
               type="checkbox" 
               class="form-check-input" 
-              :id="brand"
+              :id="'brand-' + brand"
               :value="brand"
               v-model="selectedBrands"
               @change="applyBrandFilter"
             >
-            <label class="form-check-label" :for="brand">
+            <label class="form-check-label" :for="'brand-' + brand">
               {{ brand }}
               <span class="badge bg-light text-dark">{{ getBrandCount(brand) }}</span>
             </label>
@@ -109,6 +101,7 @@
             v-for="star in [5, 4, 3, 2, 1]" 
             :key="star"
             class="rating-option"
+            :class="{ active: selectedRating === star }"
             @click="toggleRating(star)"
           >
             <div class="stars">
@@ -172,10 +165,8 @@ const { products } = storeToRefs(productStore);
 
 // State
 const categoryFilter = ref('');
-const minPriceInput = ref('');
-const maxPriceInput = ref('');
-const priceRange = ref(0);
-const maxPrice = ref(10000000);
+const minPrice = ref('');
+const maxPrice = ref('');
 const selectedBrands = ref([]);
 const selectedRating = ref(0);
 const sortBy = ref('newest');
@@ -194,23 +185,40 @@ const getBrandCount = (brand) => {
   return products.value.filter(p => p.brand === brand).length;
 };
 
+// Handle category click
+const handleCategoryClick = (slug) => {
+  categoryFilter.value = slug;
+};
+
 // Apply price filter
 const applyPriceFilter = () => {
   const query = { ...route.query };
   
-  if (minPriceInput.value) {
-    query.minPrice = minPriceInput.value;
+  if (minPrice.value) {
+    query.minPrice = minPrice.value;
   } else {
     delete query.minPrice;
   }
   
-  if (maxPriceInput.value) {
-    query.maxPrice = maxPriceInput.value;
+  if (maxPrice.value) {
+    query.maxPrice = maxPrice.value;
   } else {
     delete query.maxPrice;
   }
   
-  router.push({ query });
+  query.page = 1;
+  router.push({ path: '/products', query });
+};
+
+// Clear price filter
+const clearPriceFilter = () => {
+  minPrice.value = '';
+  maxPrice.value = '';
+  const query = { ...route.query };
+  delete query.minPrice;
+  delete query.maxPrice;
+  query.page = 1;
+  router.push({ path: '/products', query });
 };
 
 // Apply brand filter
@@ -223,7 +231,8 @@ const applyBrandFilter = () => {
     delete query.brand;
   }
   
-  router.push({ query });
+  query.page = 1;
+  router.push({ path: '/products', query });
 };
 
 // Clear brand filter
@@ -247,22 +256,23 @@ const toggleRating = (star) => {
     delete query.minRating;
   }
   
-  router.push({ query });
+  query.page = 1;
+  router.push({ path: '/products', query });
 };
 
 // Apply sort
 const applySort = () => {
   const [sort, order] = sortBy.value.split('-');
   const query = { ...route.query, sort, order: order || 'desc' };
-  router.push({ query });
+  query.page = 1;
+  router.push({ path: '/products', query });
 };
 
 // Reset all filters
 const resetAllFilters = () => {
   categoryFilter.value = '';
-  minPriceInput.value = '';
-  maxPriceInput.value = '';
-  priceRange.value = 0;
+  minPrice.value = '';
+  maxPrice.value = '';
   selectedBrands.value = [];
   selectedRating.value = 0;
   sortBy.value = 'newest';
@@ -279,11 +289,11 @@ const loadFiltersFromUrl = () => {
   }
   
   if (query.minPrice) {
-    minPriceInput.value = query.minPrice;
+    minPrice.value = query.minPrice;
   }
   
   if (query.maxPrice) {
-    maxPriceInput.value = query.maxPrice;
+    maxPrice.value = query.maxPrice;
   }
   
   if (query.brand) {
@@ -308,7 +318,6 @@ watch(() => route.query, () => {
 // Lifecycle
 onMounted(() => {
   loadFiltersFromUrl();
-  // Load categories
   categoryStore.fetchCategories();
 });
 </script>
@@ -323,7 +332,7 @@ onMounted(() => {
   background: white;
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .sidebar-section {
@@ -392,32 +401,6 @@ onMounted(() => {
 }
 
 /* Price Range */
-.price-slider {
-  margin-bottom: 1rem;
-}
-
-.price-slider .form-range {
-  width: 100%;
-  padding: 0;
-  background: transparent;
-}
-
-.price-slider .form-range:focus {
-  outline: none;
-}
-
-.price-slider .form-range::-webkit-slider-thumb {
-  background: #2563eb;
-}
-
-.price-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.875rem;
-  color: #94a3b8;
-  margin-top: 4px;
-}
-
 .price-inputs {
   display: flex;
   gap: 8px;
@@ -466,6 +449,10 @@ onMounted(() => {
 
 .rating-filter .rating-option:hover {
   background: #f8fafc;
+}
+
+.rating-filter .rating-option.active {
+  background: #eff6ff;
 }
 
 .rating-filter .rating-option .stars {

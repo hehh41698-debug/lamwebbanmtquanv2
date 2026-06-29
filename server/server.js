@@ -20,6 +20,7 @@ const cartRoutes = require('./src/routes/cartRoutes');
 const orderRoutes = require('./src/routes/orderRoutes');
 const reviewRoutes = require('./src/routes/reviewRoutes');
 const userRoutes = require('./src/routes/userRoutes');
+const wishlistRoutes = require('./src/routes/wishlistRoutes'); // THÊM DÒNG NÀY
 
 // Import passport config
 require('./src/config/passport');
@@ -54,11 +55,11 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(passport.initialize());
 
 // ============================================
-// RATE LIMITING - TĂNG GIỚI HẠN CHO DEVELOPMENT
+// RATE LIMITING
 // ============================================
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // 100 cho production, 1000 cho development
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000,
   message: {
     success: false,
     message: 'Quá nhiều yêu cầu, vui lòng thử lại sau.'
@@ -66,9 +67,7 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Bỏ qua rate limit cho các route test
     if (req.path.startsWith('/test-')) return true;
-    // Bỏ qua rate limit cho health check
     if (req.path === '/health') return true;
     return false;
   }
@@ -96,7 +95,8 @@ app.get('/', (req, res) => {
         cart: '/api/cart',
         orders: '/api/orders',
         reviews: '/api/reviews',
-        users: '/api/users'
+        users: '/api/users',
+        wishlist: '/api/wishlist' // THÊM DÒNG NÀY
       }
     }
   });
@@ -115,7 +115,7 @@ app.get('/health', (req, res) => {
 });
 
 // ============================================
-// TEST ROUTES - Kiểm tra dữ liệu
+// TEST ROUTES
 // ============================================
 
 // Test database connection
@@ -196,6 +196,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/wishlist', wishlistRoutes); // THÊM DÒNG NÀY
 
 // ============================================
 // ERROR HANDLING

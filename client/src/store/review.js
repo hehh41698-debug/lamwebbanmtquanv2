@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
 import api from '../api/auth';
+import { toast } from 'vue3-toastify';
 
 export const useReviewStore = defineStore('review', {
   state: () => ({
     reviews: [],
-    review: null,
     loading: false,
     error: null,
     pagination: {
@@ -16,19 +16,20 @@ export const useReviewStore = defineStore('review', {
   }),
 
   actions: {
-    async fetchAllReviews(params = {}) {
+    // Lấy đánh giá sản phẩm
+    async fetchProductReviews(productId, params = {}) {
       this.loading = true;
       this.error = null;
       
       try {
         const queryParams = new URLSearchParams();
         Object.keys(params).forEach(key => {
-          if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+          if (params[key] !== undefined && params[key] !== '') {
             queryParams.append(key, params[key]);
           }
         });
         
-        const response = await api.get(`/reviews/admin?${queryParams.toString()}`);
+        const response = await api.get(`/reviews/product/${productId}?${queryParams.toString()}`);
         this.reviews = response.data.reviews || [];
         this.pagination = {
           page: response.data.page || 1,
@@ -38,6 +39,7 @@ export const useReviewStore = defineStore('review', {
         };
         return { success: true, data: response.data };
       } catch (error) {
+        console.error('❌ Fetch reviews error:', error);
         this.error = error.response?.data?.message || 'Failed to fetch reviews';
         return { success: false, error: this.error };
       } finally {
@@ -45,25 +47,43 @@ export const useReviewStore = defineStore('review', {
       }
     },
 
-    async approveReview(id) {
+    // Tạo đánh giá mới
+    async createReview(data) {
       this.loading = true;
       this.error = null;
       
       try {
-        const response = await api.put(`/reviews/${id}/approve`);
-        const index = this.reviews.findIndex(r => r._id === id);
-        if (index !== -1) {
-          this.reviews[index] = response.data.review;
+        console.log('📝 Creating review:', data);
+        
+        const response = await api.post(`/reviews/product/${data.productId}`, {
+          rating: data.rating,
+          comment: data.comment,
+          images: data.images || []
+        });
+        
+        console.log('✅ Review response:', response.data);
+        
+        if (response.data.success) {
+          this.reviews.unshift(response.data.review);
+          toast.success(response.data.message || 'Gửi đánh giá thành công!');
+          return { success: true, data: response.data };
+        } else {
+          throw new Error(response.data.message || 'Gửi đánh giá thất bại');
         }
-        return { success: true, data: response.data };
       } catch (error) {
-        this.error = error.response?.data?.message || 'Failed to approve review';
-        return { success: false, error: this.error };
+        console.error('❌ Create review error:', error);
+        console.error('❌ Error response:', error.response?.data);
+        
+        const message = error.response?.data?.message || error.message || 'Không thể gửi đánh giá';
+        this.error = message;
+        toast.error(message);
+        return { success: false, error: message };
       } finally {
         this.loading = false;
       }
     },
 
+    // Xóa đánh giá
     async deleteReview(id) {
       this.loading = true;
       this.error = null;
@@ -71,10 +91,14 @@ export const useReviewStore = defineStore('review', {
       try {
         await api.delete(`/reviews/${id}`);
         this.reviews = this.reviews.filter(r => r._id !== id);
+        toast.success('Xóa đánh giá thành công');
         return { success: true };
       } catch (error) {
-        this.error = error.response?.data?.message || 'Failed to delete review';
-        return { success: false, error: this.error };
+        console.error('❌ Delete review error:', error);
+        const message = error.response?.data?.message || 'Không thể xóa đánh giá';
+        this.error = message;
+        toast.error(message);
+        return { success: false, error: message };
       } finally {
         this.loading = false;
       }

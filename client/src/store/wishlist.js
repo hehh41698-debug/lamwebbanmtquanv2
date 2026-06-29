@@ -32,11 +32,12 @@ export const useWishlistStore = defineStore('wishlist', {
         }
         
         const response = await api.get('/wishlist');
+        console.log('❤️ Wishlist response:', response.data);
         this.items = response.data.items || [];
         this.saveToLocalStorage();
         return { success: true, data: response.data };
       } catch (error) {
-        console.error('Fetch wishlist error:', error);
+        console.error('❌ Fetch wishlist error:', error);
         this.error = error.response?.data?.message || 'Failed to fetch wishlist';
         this.loadFromLocalStorage();
         return { success: false, error: this.error };
@@ -45,7 +46,7 @@ export const useWishlistStore = defineStore('wishlist', {
       }
     },
 
-    // Thêm vào danh sách yêu thích
+    // Thêm vào yêu thích
     async addToWishlist(productId) {
       this.loading = true;
       this.error = null;
@@ -63,16 +64,17 @@ export const useWishlistStore = defineStore('wishlist', {
         toast.success('Đã thêm vào danh sách yêu thích');
         return { success: true, data: response.data };
       } catch (error) {
-        console.error('Add to wishlist error:', error);
-        this.error = error.response?.data?.message || 'Failed to add to wishlist';
-        toast.error(this.error);
-        return { success: false, error: this.error };
+        console.error('❌ Add to wishlist error:', error);
+        const message = error.response?.data?.message || 'Không thể thêm vào yêu thích';
+        this.error = message;
+        toast.error(message);
+        return { success: false, error: message };
       } finally {
         this.loading = false;
       }
     },
 
-    // Xóa khỏi danh sách yêu thích
+    // Xóa khỏi yêu thích
     async removeFromWishlist(itemId) {
       this.loading = true;
       this.error = null;
@@ -84,10 +86,11 @@ export const useWishlistStore = defineStore('wishlist', {
         toast.success('Đã xóa khỏi danh sách yêu thích');
         return { success: true, data: response.data };
       } catch (error) {
-        console.error('Remove from wishlist error:', error);
-        this.error = error.response?.data?.message || 'Failed to remove from wishlist';
-        toast.error(this.error);
-        return { success: false, error: this.error };
+        console.error('❌ Remove from wishlist error:', error);
+        const message = error.response?.data?.message || 'Không thể xóa khỏi yêu thích';
+        this.error = message;
+        toast.error(message);
+        return { success: false, error: message };
       } finally {
         this.loading = false;
       }
@@ -104,8 +107,14 @@ export const useWishlistStore = defineStore('wishlist', {
     },
 
     // Kiểm tra sản phẩm đã yêu thích chưa
-    checkWishlist(productId) {
-      return this.items.some(item => item.product?._id === productId);
+    async checkWishlist(productId) {
+      try {
+        const response = await api.get(`/wishlist/check/${productId}`);
+        return response.data.isInWishlist || false;
+      } catch (error) {
+        console.error('Check wishlist error:', error);
+        return false;
+      }
     },
 
     // Xóa toàn bộ
@@ -120,17 +129,19 @@ export const useWishlistStore = defineStore('wishlist', {
         }
         this.items = [];
         this.saveToLocalStorage();
+        toast.success('Đã xóa toàn bộ danh sách yêu thích');
         return { success: true };
       } catch (error) {
-        console.error('Clear wishlist error:', error);
-        this.error = error.response?.data?.message || 'Failed to clear wishlist';
-        return { success: false, error: this.error };
+        console.error('❌ Clear wishlist error:', error);
+        const message = error.response?.data?.message || 'Không thể xóa danh sách yêu thích';
+        this.error = message;
+        toast.error(message);
+        return { success: false, error: message };
       } finally {
         this.loading = false;
       }
     },
 
-    // LOCAL STORAGE METHODS
     loadFromLocalStorage() {
       const saved = localStorage.getItem('wishlist');
       if (saved) {

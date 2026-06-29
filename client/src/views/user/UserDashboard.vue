@@ -11,8 +11,8 @@
                 class="user-avatar"
                 :alt="user?.name"
               >
-              <h6 class="user-name">{{ user?.name }}</h6>
-              <span class="user-email">{{ user?.email }}</span>
+              <h6 class="user-name">{{ user?.name || 'Khách hàng' }}</h6>
+              <span class="user-email">{{ user?.email || '' }}</span>
               <span class="badge bg-primary mt-2">{{ user?.role === 'admin' ? 'Admin' : 'Thành viên' }}</span>
             </div>
             <ul class="dashboard-menu">
@@ -44,6 +44,7 @@
               <li>
                 <router-link to="/dashboard/wishlist">
                   <i class="bi bi-heart"></i> Sản phẩm yêu thích
+                  <span v-if="wishlistCount > 0" class="badge bg-danger ms-1">{{ wishlistCount }}</span>
                 </router-link>
               </li>
               <li>
@@ -96,6 +97,31 @@
                   </div>
                   <div class="stat-number">{{ orderStats.cancelled || 0 }}</div>
                   <div class="stat-label">Đã hủy</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Wishlist Quick View -->
+            <div class="section-card mb-4">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0">
+                  <i class="bi bi-heart text-danger me-2"></i>Sản phẩm yêu thích
+                </h6>
+                <router-link to="/dashboard/wishlist" class="btn btn-sm btn-outline-primary">
+                  Xem tất cả <i class="bi bi-arrow-right"></i>
+                </router-link>
+              </div>
+              <div v-if="wishlistItems.length === 0" class="text-center py-3 text-muted">
+                <i class="bi bi-heart fs-4 d-block"></i>
+                <span>Chưa có sản phẩm yêu thích</span>
+              </div>
+              <div v-else class="row g-3">
+                <div v-for="item in wishlistItems.slice(0, 4)" :key="item._id" class="col-md-3 col-6">
+                  <div class="wishlist-mini-item">
+                    <img :src="item.product?.images?.[0] || '/images/no-image.png'" :alt="item.product?.name">
+                    <div class="wishlist-mini-name">{{ truncateText(item.product?.name, 20) }}</div>
+                    <div class="wishlist-mini-price">{{ formatPrice(item.product?.price) }}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -182,16 +208,20 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../store/auth';
 import { useOrderStore } from '../../store/order';
-import { formatPrice, formatDate } from '../../utils/helpers';
+import { useWishlistStore } from '../../store/wishlist';
+import { formatPrice, formatDate, truncateText } from '../../utils/helpers';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../../utils/constants';
 import { toast } from 'vue3-toastify';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const orderStore = useOrderStore();
+const wishlistStore = useWishlistStore();
 
 const user = computed(() => authStore.user);
 const recentOrders = ref([]);
+const wishlistItems = computed(() => wishlistStore.items);
+const wishlistCount = computed(() => wishlistStore.wishlistCount);
 const orderStats = ref({
   total: 0,
   pending: 0,
@@ -218,6 +248,10 @@ const loadOrders = async () => {
   }
 };
 
+const loadWishlist = async () => {
+  await wishlistStore.fetchWishlist();
+};
+
 const handleLogout = async () => {
   if (confirm('Bạn có chắc muốn đăng xuất?')) {
     await authStore.logout();
@@ -232,6 +266,7 @@ onMounted(() => {
     return;
   }
   loadOrders();
+  loadWishlist();
 });
 </script>
 
@@ -270,6 +305,7 @@ onMounted(() => {
 .user-name {
   font-weight: 600;
   margin-bottom: 0.25rem;
+  color: #1a202c;
 }
 
 .user-email {
@@ -312,6 +348,12 @@ onMounted(() => {
 .dashboard-menu li a i {
   font-size: 1.1rem;
   width: 20px;
+  text-align: center;
+}
+
+.dashboard-menu li a .badge {
+  font-size: 11px;
+  padding: 2px 8px;
 }
 
 /* Content */
@@ -428,6 +470,40 @@ onMounted(() => {
 
 .quick-action span {
   font-weight: 500;
+}
+
+/* Wishlist Mini */
+.wishlist-mini-item {
+  text-align: center;
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: all 0.3s;
+}
+
+.wishlist-mini-item:hover {
+  border-color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.wishlist-mini-item img {
+  width: 100%;
+  height: 80px;
+  object-fit: contain;
+  margin-bottom: 0.25rem;
+}
+
+.wishlist-mini-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #1a202c;
+}
+
+.wishlist-mini-price {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #2563eb;
 }
 
 @media (max-width: 992px) {

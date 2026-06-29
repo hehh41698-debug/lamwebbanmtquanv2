@@ -29,9 +29,9 @@
           <!-- Product Images -->
           <div class="col-lg-6">
             <div class="product-image-main">
-              <img :src="selectedImage || product.images[0] || '/images/no-image.png'" :alt="product.name">
+              <img :src="selectedImage || product.images?.[0] || '/images/no-image.png'" :alt="product.name" @error="handleImageError">
             </div>
-            <div class="product-image-thumbs" v-if="product.images.length > 1">
+            <div class="product-image-thumbs" v-if="product.images?.length > 1">
               <img 
                 v-for="(img, idx) in product.images" 
                 :key="idx"
@@ -39,6 +39,7 @@
                 :alt="'Image ' + (idx + 1)"
                 :class="{ active: selectedImage === img || (!selectedImage && idx === 0) }"
                 @click="selectedImage = img"
+                @error="handleImageError"
               >
             </div>
           </div>
@@ -51,7 +52,7 @@
             <div class="product-rating">
               <div class="stars">
                 <i v-for="n in 5" :key="n" class="bi bi-star-fill"
-                   :class="{ 'text-warning': n <= Math.round(product.rating), 'text-secondary': n > Math.round(product.rating) }"></i>
+                   :class="{ 'text-warning': n <= Math.round(product.rating || 0), 'text-secondary': n > Math.round(product.rating || 0) }"></i>
               </div>
               <span class="rating-text">({{ product.rating || 0 }} đánh giá)</span>
             </div>
@@ -105,7 +106,7 @@
             <div class="product-specs" v-if="product.specs">
               <h6>Thông số kỹ thuật</h6>
               <div class="specs-grid">
-                <div v-for="(value, key) in product.specs" :key="key" class="spec-item">
+                <div v-for="(value, key) in product.specs" :key="key" class="spec-item" v-if="value">
                   <span class="spec-label">{{ formatSpecLabel(key) }}</span>
                   <span class="spec-value">{{ value || 'N/A' }}</span>
                 </div>
@@ -114,9 +115,24 @@
           </div>
         </div>
 
-        <!-- Reviews -->
+        <!-- Reviews Section -->
         <div class="reviews-section mt-5">
           <h5 class="mb-4">Đánh giá sản phẩm</h5>
+          
+          <!-- Thông báo -->
+          <div v-if="reviewSubmitted" class="alert alert-success alert-dismissible fade show">
+            <i class="bi bi-check-circle me-2"></i>
+            {{ reviewSubmittedMessage }}
+            <button type="button" class="btn-close" @click="reviewSubmitted = false"></button>
+          </div>
+          
+          <div v-if="reviewError" class="alert alert-danger alert-dismissible fade show">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            {{ reviewError }}
+            <button type="button" class="btn-close" @click="reviewError = ''"></button>
+          </div>
+
+          <!-- Form đánh giá -->
           <div v-if="!authStore.isAuthenticated" class="text-center py-3">
             <p class="text-muted">Vui lòng <router-link to="/login">đăng nhập</router-link> để đánh giá sản phẩm</p>
           </div>
@@ -124,19 +140,27 @@
             <h6>Viết đánh giá</h6>
             <div class="mb-2">
               <RatingStars v-model="reviewRating" />
+              <small class="text-muted" v-if="reviewRating === 0">Chọn số sao bạn đánh giá</small>
             </div>
             <div class="mb-2">
-              <textarea class="form-control" v-model="reviewComment" rows="3" placeholder="Chia sẻ trải nghiệm của bạn..."></textarea>
+              <textarea 
+                class="form-control" 
+                v-model="reviewComment" 
+                rows="3" 
+                placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm này..."
+                :class="{ 'is-invalid': reviewError }"
+              ></textarea>
             </div>
             <button class="btn btn-primary" @click="submitReview" :disabled="submittingReview">
               <span v-if="submittingReview" class="spinner-border spinner-border-sm me-2"></span>
-              Gửi đánh giá
+              {{ submittingReview ? 'Đang gửi...' : 'Gửi đánh giá' }}
             </button>
           </div>
 
+          <!-- Danh sách đánh giá -->
           <div v-if="reviews.length === 0" class="text-center py-4 text-muted">
             <i class="bi bi-chat-dots fs-3 d-block"></i>
-            Chưa có đánh giá nào
+            Chưa có đánh giá nào cho sản phẩm này
           </div>
           <div v-else>
             <ReviewItem 
@@ -164,6 +188,9 @@ import ReviewItem from '../../components/user/ReviewItem.vue';
 import { formatPrice } from '../../utils/helpers';
 import { toast } from 'vue3-toastify';
 
+// ============================================
+// COMPOSABLES
+// ============================================
 const route = useRoute();
 const router = useRouter();
 const productStore = useProductStore();
@@ -171,6 +198,9 @@ const cartStore = useCartStore();
 const authStore = useAuthStore();
 const reviewStore = useReviewStore();
 
+// ============================================
+// STATE
+// ============================================
 const product = computed(() => productStore.product);
 const loading = computed(() => productStore.loading);
 const reviews = computed(() => reviewStore.reviews);
@@ -178,10 +208,20 @@ const reviews = computed(() => reviewStore.reviews);
 const selectedImage = ref('');
 const quantity = ref(1);
 const addingToCart = ref(false);
+
+// Review state
 const reviewRating = ref(0);
 const reviewComment = ref('');
 const submittingReview = ref(false);
+const reviewSubmitted = ref(false);
+const reviewSubmittedMessage = ref('');
+const reviewError = ref('');
 
+// ============================================
+// METHODS
+// ============================================
+
+// Format spec label
 const formatSpecLabel = (key) => {
   const labels = {
     processor: 'CPU',
@@ -198,11 +238,12 @@ const formatSpecLabel = (key) => {
   return labels[key] || key;
 };
 
+// Load product
 const loadProduct = async () => {
   const id = route.params.id;
   const result = await productStore.fetchProductById(id);
   if (result.success) {
-    selectedImage.value = product.value.images[0] || '';
+    selectedImage.value = product.value.images?.[0] || '';
     await reviewStore.fetchProductReviews(id);
   } else {
     toast.error('Không tìm thấy sản phẩm');
@@ -210,6 +251,7 @@ const loadProduct = async () => {
   }
 };
 
+// Add to cart
 const addToCart = async () => {
   if (product.value.stock === 0) {
     toast.warning('Sản phẩm đã hết hàng');
@@ -226,6 +268,7 @@ const addToCart = async () => {
   addingToCart.value = false;
 };
 
+// Buy now
 const buyNow = async () => {
   if (product.value.stock === 0) {
     toast.warning('Sản phẩm đã hết hàng');
@@ -242,36 +285,67 @@ const buyNow = async () => {
   router.push('/checkout');
 };
 
+// Submit review
 const submitReview = async () => {
-  if (!reviewRating.value) {
-    toast.warning('Vui lòng chọn số sao');
+  // Reset messages
+  reviewError.value = '';
+  reviewSubmitted.value = false;
+
+  // Validate
+  if (!reviewRating.value || reviewRating.value < 1) {
+    reviewError.value = 'Vui lòng chọn số sao đánh giá';
     return;
   }
-  if (!reviewComment.value.trim()) {
-    toast.warning('Vui lòng nhập nội dung đánh giá');
+  
+  if (!reviewComment.value.trim() || reviewComment.value.trim().length < 3) {
+    reviewError.value = 'Vui lòng nhập nội dung đánh giá (ít nhất 3 ký tự)';
     return;
   }
   
   submittingReview.value = true;
-  const result = await reviewStore.createReview({
-    productId: product.value._id,
-    rating: reviewRating.value,
-    comment: reviewComment.value
-  });
   
-  if (result.success) {
-    toast.success('Đánh giá đã được gửi');
-    reviewRating.value = 0;
-    reviewComment.value = '';
-    await reviewStore.fetchProductReviews(product.value._id);
-    await productStore.fetchProductById(product.value._id);
-  } else {
-    toast.error(result.error || 'Gửi đánh giá thất bại');
+  try {
+    console.log('📝 Submitting review:', {
+      productId: product.value._id,
+      rating: reviewRating.value,
+      comment: reviewComment.value
+    });
+    
+    const result = await reviewStore.createReview({
+      productId: product.value._id,
+      rating: reviewRating.value,
+      comment: reviewComment.value
+    });
+    
+    if (result.success) {
+      reviewSubmitted.value = true;
+      reviewSubmittedMessage.value = 'Đánh giá của bạn đã được gửi thành công!';
+      reviewRating.value = 0;
+      reviewComment.value = '';
+      
+      // Tải lại đánh giá
+      await reviewStore.fetchProductReviews(product.value._id);
+      await productStore.fetchProductById(product.value._id);
+      
+      // Tự động ẩn thông báo sau 5 giây
+      setTimeout(() => {
+        reviewSubmitted.value = false;
+      }, 5000);
+    } else {
+      reviewError.value = result.error || 'Gửi đánh giá thất bại. Vui lòng thử lại.';
+    }
+  } catch (error) {
+    console.error('❌ Submit review error:', error);
+    reviewError.value = 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+  } finally {
+    submittingReview.value = false;
   }
-  submittingReview.value = false;
 };
 
+// Delete review
 const handleDeleteReview = async (id) => {
+  if (!confirm('Bạn có chắc muốn xóa đánh giá này?')) return;
+  
   const result = await reviewStore.deleteReview(id);
   if (result.success) {
     toast.success('Đã xóa đánh giá');
@@ -282,6 +356,14 @@ const handleDeleteReview = async (id) => {
   }
 };
 
+// Handle image error
+const handleImageError = (event) => {
+  event.target.src = '/images/no-image.png';
+};
+
+// ============================================
+// LIFECYCLE
+// ============================================
 onMounted(() => {
   loadProduct();
 });
@@ -303,6 +385,11 @@ onMounted(() => {
   text-decoration: none;
 }
 
+.breadcrumb-item a:hover {
+  text-decoration: underline;
+}
+
+/* Product Images */
 .product-image-main {
   background: white;
   border-radius: 12px;
@@ -345,6 +432,7 @@ onMounted(() => {
   border-color: #2563eb;
 }
 
+/* Product Info */
 .product-title {
   font-weight: 700;
   color: #1a202c;
@@ -365,6 +453,10 @@ onMounted(() => {
 .product-rating .stars {
   display: flex;
   gap: 2px;
+}
+
+.product-rating .stars i {
+  font-size: 16px;
 }
 
 .product-rating .rating-text {
@@ -431,6 +523,7 @@ onMounted(() => {
   line-height: 1.6;
 }
 
+/* Product Actions */
 .product-actions {
   display: flex;
   gap: 1rem;
@@ -457,6 +550,11 @@ onMounted(() => {
   justify-content: center;
 }
 
+.quantity-selector .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .quantity-selector .quantity {
   min-width: 40px;
   text-align: center;
@@ -469,6 +567,7 @@ onMounted(() => {
   font-weight: 600;
 }
 
+/* Specs */
 .product-specs {
   background: white;
   border-radius: 12px;
@@ -495,6 +594,10 @@ onMounted(() => {
   font-size: 0.9rem;
 }
 
+.spec-item:last-child {
+  border-bottom: none;
+}
+
 .spec-item .spec-label {
   color: #94a3b8;
 }
@@ -504,6 +607,7 @@ onMounted(() => {
   color: #1a202c;
 }
 
+/* Reviews */
 .reviews-section {
   background: white;
   border-radius: 12px;
@@ -517,6 +621,21 @@ onMounted(() => {
   padding: 1.5rem;
 }
 
+.review-form h6 {
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.alert {
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.alert .btn-close {
+  padding: 0.75rem;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
   .product-image-main {
     height: 250px;
@@ -530,8 +649,39 @@ onMounted(() => {
     flex-direction: column;
   }
   
+  .product-actions .btn {
+    width: 100%;
+  }
+  
   .specs-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .reviews-section {
+    padding: 1rem;
+  }
+  
+  .review-form {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .product-image-main {
+    height: 200px;
+  }
+  
+  .product-title {
+    font-size: 1.2rem;
+  }
+  
+  .product-price .current-price {
+    font-size: 1.3rem;
+  }
+  
+  .product-image-thumbs img {
+    width: 50px;
+    height: 50px;
   }
 }
 </style>

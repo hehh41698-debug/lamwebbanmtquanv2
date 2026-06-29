@@ -6,9 +6,11 @@
         class="user-avatar"
         :alt="user?.name"
       >
-      <h6 class="user-name">{{ user?.name }}</h6>
-      <span class="user-email">{{ user?.email }}</span>
+      <h6 class="user-name">{{ user?.name || 'Khách hàng' }}</h6>
+      <span class="user-email">{{ user?.email || '' }}</span>
+      <span class="badge bg-primary mt-2">{{ user?.role === 'admin' ? 'Admin' : 'Thành viên' }}</span>
     </div>
+    
     <ul class="sidebar-menu">
       <li>
         <router-link to="/dashboard" exact>
@@ -38,6 +40,7 @@
       <li>
         <router-link to="/dashboard/wishlist">
           <i class="bi bi-heart"></i> Yêu thích
+          <span v-if="wishlistCount > 0" class="badge bg-danger ms-1">{{ wishlistCount }}</span>
         </router-link>
       </li>
       <li>
@@ -50,15 +53,18 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../store/auth';
+import { useWishlistStore } from '../../store/wishlist';
 import { toast } from 'vue3-toastify';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const wishlistStore = useWishlistStore();
 
 const user = computed(() => authStore.user);
+const wishlistCount = computed(() => wishlistStore.wishlistCount);
 
 const handleLogout = async () => {
   if (confirm('Bạn có chắc muốn đăng xuất?')) {
@@ -67,6 +73,10 @@ const handleLogout = async () => {
     router.push('/');
   }
 };
+
+onMounted(() => {
+  wishlistStore.fetchWishlist();
+});
 </script>
 
 <style scoped>
@@ -98,6 +108,7 @@ const handleLogout = async () => {
 .user-name {
   font-weight: 600;
   margin-bottom: 0.25rem;
+  color: #1a202c;
 }
 
 .user-email {
@@ -140,6 +151,12 @@ const handleLogout = async () => {
 .sidebar-menu li a i {
   font-size: 1.1rem;
   width: 20px;
+  text-align: center;
+}
+
+.sidebar-menu li a .badge {
+  font-size: 11px;
+  padding: 2px 8px;
 }
 
 @media (max-width: 992px) {

@@ -1,27 +1,18 @@
 const express = require('express');
 const router = express.Router();
+const { 
+  getProductReviews,
+  createReview,
+  deleteReview
+} = require('../controllers/reviewController');
+const { authenticate } = require('../middleware/auth');
+const { adminOnly } = require('../middleware/auth');
 
-// Tạo các function giả để test
-const getProductReviews = (req, res) => {
-  res.json({ success: true, reviews: [] });
-};
-
-const createReview = (req, res) => {
-  res.json({ success: true, message: 'Review created' });
-};
-
-const updateReview = (req, res) => {
-  res.json({ success: true, message: 'Review updated' });
-};
-
-const deleteReview = (req, res) => {
-  res.json({ success: true, message: 'Review deleted' });
-};
-
-// Routes
+// Public routes
 router.get('/product/:productId', getProductReviews);
-router.post('/product/:productId', createReview);
-router.put('/:id', updateReview);
-router.delete('/:id', deleteReview);
+
+// Authenticated routes
+router.post('/product/:productId', authenticate, createReview);
+router.delete('/:id', authenticate, deleteReview);
 
 module.exports = router;

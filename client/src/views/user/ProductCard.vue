@@ -12,8 +12,6 @@
         class="btn-wishlist" 
         @click.stop="toggleWishlist"
         :class="{ active: isWishlist }"
-        :disabled="loadingWishlist"
-        title="Thêm vào yêu thích"
       >
         <i :class="isWishlist ? 'bi bi-heart-fill' : 'bi bi-heart'"></i>
       </button>
@@ -76,7 +74,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCartStore } from '../../store/cart';
 import { useAuthStore } from '../../store/auth';
@@ -99,7 +97,6 @@ const authStore = useAuthStore();
 const wishlistStore = useWishlistStore();
 
 const adding = ref(false);
-const loadingWishlist = ref(false);
 const isWishlist = ref(false);
 
 // Kiểm tra sản phẩm đã yêu thích chưa
@@ -108,25 +105,18 @@ const checkWishlist = async () => {
   isWishlist.value = wishlistStore.isInWishlist(props.product._id);
 };
 
-// Toggle wishlist
-const toggleWishlist = async () => {
+const toggleWishlist = async (e) => {
+  e.stopPropagation();
+  
   if (!authStore.isAuthenticated) {
     toast.warning('Vui lòng đăng nhập để thêm vào yêu thích');
     router.push('/login');
     return;
   }
   
-  loadingWishlist.value = true;
-  try {
-    const result = await wishlistStore.toggleWishlist(props.product._id);
-    if (result.success) {
-      isWishlist.value = !isWishlist.value;
-      toast.success(isWishlist.value ? 'Đã thêm vào yêu thích' : 'Đã xóa khỏi yêu thích');
-    }
-  } catch (error) {
-    console.error('Toggle wishlist error:', error);
-  } finally {
-    loadingWishlist.value = false;
+  const result = await wishlistStore.toggleWishlist(props.product._id);
+  if (result.success) {
+    isWishlist.value = wishlistStore.isInWishlist(props.product._id);
   }
 };
 
@@ -226,39 +216,22 @@ onMounted(() => {
   transition: all 0.3s;
   z-index: 5;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(4px);
 }
 
 .btn-wishlist:hover {
   transform: scale(1.1);
   background: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .btn-wishlist.active {
   color: #ef4444;
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(239, 68, 68, 0.1);
 }
 
 .btn-wishlist.active:hover {
-  background: rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.2);
 }
 
-.btn-wishlist:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-wishlist i {
-  font-size: 1.1rem;
-  transition: transform 0.3s;
-}
-
-.btn-wishlist:hover i {
-  transform: scale(1.15);
-}
-
-/* Badges */
 .product-badge {
   position: absolute;
   top: 12px;
@@ -384,14 +357,6 @@ onMounted(() => {
   .product-overlay .btn {
     font-size: 11px;
     padding: 4px 10px;
-  }
-  
-  .btn-wishlist {
-    width: 30px;
-    height: 30px;
-    font-size: 0.9rem;
-    top: 8px;
-    right: 8px;
   }
 }
 </style>
