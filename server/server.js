@@ -7,6 +7,7 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const bodyParser = require('body-parser');
 const passport = require('passport');
+const cookieParser = require('cookie-parser');
 const { errorHandler } = require('./src/middleware/errorHandler');
 
 // Load environment variables
@@ -20,7 +21,7 @@ const cartRoutes = require('./src/routes/cartRoutes');
 const orderRoutes = require('./src/routes/orderRoutes');
 const reviewRoutes = require('./src/routes/reviewRoutes');
 const userRoutes = require('./src/routes/userRoutes');
-const wishlistRoutes = require('./src/routes/wishlistRoutes'); // THÊM DÒNG NÀY
+const wishlistRoutes = require('./src/routes/wishlistRoutes');
 
 // Import passport config
 require('./src/config/passport');
@@ -51,15 +52,18 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
+// Cookie parser
+app.use(cookieParser());
+
 // Passport
 app.use(passport.initialize());
 
 // ============================================
-// RATE LIMITING
+// RATE LIMITING - SỬ DỤNG BIẾN TỪ .ENV
 // ============================================
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === 'production' ? 100 : 1000,
+  windowMs: (process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000,
+  max: process.env.RATE_LIMIT_MAX || 500,
   message: {
     success: false,
     message: 'Quá nhiều yêu cầu, vui lòng thử lại sau.'
@@ -67,6 +71,8 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
+    // Bỏ qua rate limit cho auth routes (đăng ký, đăng nhập)
+    if (req.path.startsWith('/auth/')) return true;
     if (req.path.startsWith('/test-')) return true;
     if (req.path === '/health') return true;
     return false;
@@ -96,7 +102,7 @@ app.get('/', (req, res) => {
         orders: '/api/orders',
         reviews: '/api/reviews',
         users: '/api/users',
-        wishlist: '/api/wishlist' // THÊM DÒNG NÀY
+        wishlist: '/api/wishlist'
       }
     }
   });
@@ -118,7 +124,6 @@ app.get('/health', (req, res) => {
 // TEST ROUTES
 // ============================================
 
-// Test database connection
 app.get('/test-db', async (req, res) => {
   try {
     const db = mongoose.connection.db;
@@ -160,7 +165,6 @@ app.get('/test-db', async (req, res) => {
   }
 });
 
-// Test populate
 app.get('/test-populate', async (req, res) => {
   try {
     const Product = require('./src/models/Product');
@@ -196,7 +200,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/wishlist', wishlistRoutes); // THÊM DÒNG NÀY
+app.use('/api/wishlist', wishlistRoutes);
 
 // ============================================
 // ERROR HANDLING
@@ -231,6 +235,7 @@ mongoose.connect(MONGODB_URI, {
   console.log('✅ Connected to MongoDB');
   console.log(`📊 Database: ${mongoose.connection.db.databaseName}`);
   console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🚦 Rate Limit: ${process.env.RATE_LIMIT_MAX || 500} requests per ${process.env.RATE_LIMIT_WINDOW || 15} minutes`);
   
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
@@ -249,7 +254,7 @@ mongoose.connect(MONGODB_URI, {
   process.exit(1);
 });
 
-// Handle MongoDB connection errors after initial connection
+// Handle MongoDB connection errors
 mongoose.connection.on('error', (err) => {
   console.error('❌ MongoDB connection error:', err);
 });

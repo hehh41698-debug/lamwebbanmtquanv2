@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
+import { useProductStore } from './store/product'
 
 // Bootstrap
 import 'bootstrap/dist/css/bootstrap.min.css'
@@ -23,7 +24,14 @@ app.use(pinia)
 app.use(router)
 app.use(Vue3Toastify, {
   autoClose: 3000,
-  position: 'top-right'
+  position: 'top-right',
+  theme: 'light'
 })
+
+// ============================================
+// INIT STORE WATCHERS SAU KHI PINIA ĐƯỢC CÀI
+// ============================================
+const productStore = useProductStore()
+productStore.initWatchers()
 
 app.mount('#app')

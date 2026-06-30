@@ -19,17 +19,25 @@
             </ol>
           </nav>
           
-          <!-- Debug Info -->
-          <div 
-            v-if="showDebug" 
-            class="debug-info"
-            style="background: #e0f2fe; border: 1px solid #7dd3fc; color: #0369a1; padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;"
-          >
-            <strong>🔍 Debug:</strong> 
-            Sản phẩm: {{ productStore.products.length }} | 
-            Đang tải: {{ productStore.loading }} | 
-            Tổng: {{ productStore.pagination.total }} |
-            Trang: {{ productStore.pagination.page }}/{{ productStore.pagination.totalPages }}
+          <!-- Active Filters -->
+          <div v-if="hasActiveFilters" class="active-filters mb-3">
+            <span class="text-muted me-2">Bộ lọc đang áp dụng:</span>
+            <span v-if="route.query.category" class="badge bg-primary me-1">
+              Danh mục: {{ getCategoryName(route.query.category) }}
+              <button class="btn-close-white ms-1" @click="removeFilter('category')"></button>
+            </span>
+            <span v-if="route.query.minPrice || route.query.maxPrice" class="badge bg-primary me-1">
+              Giá: {{ formatPrice(route.query.minPrice || 0) }} - {{ formatPrice(route.query.maxPrice || '∞') }}
+              <button class="btn-close-white ms-1" @click="removeFilter('price')"></button>
+            </span>
+            <span v-if="route.query.brand" class="badge bg-primary me-1">
+              Thương hiệu: {{ route.query.brand }}
+              <button class="btn-close-white ms-1" @click="removeFilter('brand')"></button>
+            </span>
+            <span v-if="route.query.minRating" class="badge bg-primary me-1">
+              Đánh giá: {{ route.query.minRating }} sao+
+              <button class="btn-close-white ms-1" @click="removeFilter('rating')"></button>
+            </span>
           </div>
           
           <ProductList 
@@ -152,11 +160,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Sidebar from '../../components/common/Sidebar.vue';
 import ProductList from '../../components/user/ProductList.vue';
 import { useProductStore } from '../../store/product';
+import { useCategoryStore } from '../../store/category';
 import { useCartStore } from '../../store/cart';
 import { formatPrice, truncateText } from '../../utils/helpers';
 import { toast } from 'vue3-toastify';
@@ -167,13 +176,26 @@ import { toast } from 'vue3-toastify';
 const route = useRoute();
 const router = useRouter();
 const productStore = useProductStore();
+const categoryStore = useCategoryStore();
 const cartStore = useCartStore();
 
 // ============================================
 // STATE
 // ============================================
 const quickViewProduct = ref(null);
-const showDebug = ref(true); // Set to false to hide debug
+
+// ============================================
+// COMPUTED
+// ============================================
+const hasActiveFilters = computed(() => {
+  return route.query.category || route.query.minPrice || route.query.maxPrice || 
+         route.query.brand || route.query.minRating || route.query.sort;
+});
+
+const getCategoryName = (slug) => {
+  const cat = categoryStore.categories.find(c => c.slug === slug);
+  return cat?.name || slug;
+};
 
 // ============================================
 // METHODS
@@ -194,6 +216,19 @@ const formatSpecLabel = (key) => {
     color: 'Màu sắc'
   };
   return labels[key] || key;
+};
+
+// Remove filter
+const removeFilter = (type) => {
+  const query = { ...route.query };
+  switch(type) {
+    case 'category': delete query.category; break;
+    case 'price': delete query.minPrice; delete query.maxPrice; break;
+    case 'brand': delete query.brand; break;
+    case 'rating': delete query.minRating; break;
+  }
+  query.page = 1;
+  router.push({ path: '/products', query });
 };
 
 // Fetch products
@@ -281,31 +316,83 @@ const handleImageError = (event) => {
 };
 
 // ============================================
-// WATCHERS
+// WATCHERS VỚI IMMEDIATE: TRUE
 // ============================================
 
-// Watch route changes
-watch(
+// 1. Theo dõi route query - CHẠY NGAY KHI COMPONENT MOUNT
+const stopRouteWatch = watch(
   () => route.query,
-  () => {
-    console.log('🔄 Route changed:', route.query);
-    productStore.pagination.page = Number(route.query.page) || 1;
+  (newQuery) => {
+    console.log('🔄 Route changed:', newQuery);
+    productStore.pagination.page = Number(newQuery.page) || 1;
+    
+    // Cập nhật category filter trong store
+    if (newQuery.category) {
+      productStore.filters.category = newQuery.category;
+    }
+    
     fetchProducts();
   },
-  { deep: true }
+  { immediate: true, deep: true }
 );
+
+// 2. Theo dõi products trong store - debug
+watch(
+  () => productStore.products,
+  (newProducts) => {
+    console.log('📦 Products updated in store:', newProducts?.length || 0);
+  },
+  { immediate: true, deep: true }
+);
+
+// 3. Theo dõi loading state
+watch(
+  () => productStore.loading,
+  (loading) => {
+    console.log('🔄 Loading state:', loading ? 'Loading...' : 'Done');
+  },
+  { immediate: true }
+);
+
+// 4. Theo dõi error
+watch(
+  () => productStore.error,
+  (error) => {
+    if (error) {
+      console.error('❌ Product store error:', error);
+    }
+  },
+  { immediate: true }
+);
+
+// 5. Theo dõi pagination
+watch(
+  () => productStore.pagination,
+  (newPagination) => {
+    console.log(`📄 Pagination: Page ${newPagination.page}/${newPagination.totalPages}, Total: ${newPagination.total}`);
+  },
+  { immediate: true, deep: true }
+);
+
+// ============================================
+// HỦY WATCH KHI COMPONENT UNMOUNT
+// ============================================
+onUnmounted(() => {
+  stopRouteWatch();
+  console.log('🧹 ProductsPage watchers cleaned up');
+});
 
 // ============================================
 // LIFECYCLE
 // ============================================
-
 onMounted(() => {
   console.log('🚀 ProductsPage mounted');
   console.log('📦 Initial store products:', productStore.products);
   console.log('🔄 Initial store loading:', productStore.loading);
+  console.log('📄 Initial pagination:', productStore.pagination);
   
-  productStore.pagination.page = Number(route.query.page) || 1;
-  fetchProducts();
+  // Load categories for sidebar
+  categoryStore.fetchCategories();
 });
 </script>
 
@@ -332,6 +419,40 @@ onMounted(() => {
 
 .breadcrumb-item.active {
   color: #4a5568;
+}
+
+/* Active Filters */
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.active-filters .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.active-filters .btn-close-white {
+  background: none;
+  border: none;
+  color: white;
+  opacity: 0.8;
+  font-size: 12px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.active-filters .btn-close-white:hover {
+  opacity: 1;
 }
 
 /* Quick View Overlay */

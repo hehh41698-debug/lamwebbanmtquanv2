@@ -148,7 +148,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useCategoryStore } from '../../store/category';
 import { useProductStore } from '../../store/product';
@@ -310,13 +310,92 @@ const loadFiltersFromUrl = () => {
   }
 };
 
-// Watch route changes
-watch(() => route.query, () => {
-  loadFiltersFromUrl();
-}, { deep: true });
+// ============================================
+// WATCH VỚI IMMEDIATE: TRUE
+// ============================================
 
-// Lifecycle
+// 1. Theo dõi route.query - CHẠY NGAY LẬP TỨC KHI COMPONENT MOUNT
+const stopRouteWatch = watch(
+  () => route.query,
+  (newQuery) => {
+    console.log('🔄 Sidebar - Route changed:', newQuery);
+    loadFiltersFromUrl();
+  },
+  { immediate: true, deep: true }
+);
+
+// 2. Theo dõi categoryFilter - tự động cập nhật URL
+watch(
+  categoryFilter,
+  (newValue) => {
+    if (newValue) {
+      router.push({ 
+        path: '/products', 
+        query: { ...route.query, category: newValue, page: 1 } 
+      });
+    }
+  },
+  { immediate: false }
+);
+
+// 3. Theo dõi selectedBrands - áp dụng filter khi thay đổi
+watch(
+  selectedBrands,
+  (newValue) => {
+    console.log('🏷️ Brands changed:', newValue);
+    applyBrandFilter();
+  },
+  { deep: true }
+);
+
+// 4. Theo dõi minPrice và maxPrice - debug khi thay đổi
+watch(
+  [minPrice, maxPrice],
+  ([newMin, newMax]) => {
+    console.log('💰 Price changed:', { min: newMin, max: newMax });
+  },
+  { immediate: true }
+);
+
+// 5. Theo dõi selectedRating
+watch(
+  selectedRating,
+  (newValue) => {
+    console.log('⭐ Rating changed:', newValue);
+  },
+  { immediate: true }
+);
+
+// 6. Theo dõi sortBy
+watch(
+  sortBy,
+  (newValue) => {
+    console.log('📊 Sort changed:', newValue);
+  },
+  { immediate: true }
+);
+
+// 7. Theo dõi categories
+watch(
+  categories,
+  (newCategories) => {
+    console.log('📂 Categories loaded:', newCategories?.length || 0);
+  },
+  { immediate: true, deep: true }
+);
+
+// ============================================
+// HỦY WATCH KHI COMPONENT UNMOUNT
+// ============================================
+onUnmounted(() => {
+  stopRouteWatch();
+});
+
+// ============================================
+// LIFECYCLE
+// ============================================
 onMounted(() => {
+  console.log('🚀 Sidebar mounted');
   loadFiltersFromUrl();
   categoryStore.fetchCategories();
 });

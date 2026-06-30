@@ -4,7 +4,7 @@ const { generateToken, generateRefreshToken } = require('../utils/generateToken'
 const jwt = require('jsonwebtoken');
 
 // ============================================
-// ĐĂNG NHẬP
+// ĐĂNG NHẬP - LƯU TOKEN VÀO COOKIE
 // ============================================
 exports.login = async (req, res) => {
   try {
@@ -19,9 +19,7 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Tìm user
     const user = await User.findOne({ email: email.toLowerCase().trim() });
-    console.log('👤 User found:', user ? 'Yes' : 'No');
     
     if (!user) {
       return res.status(401).json({
@@ -30,7 +28,6 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Kiểm tra tài khoản bị khóa
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
@@ -38,9 +35,7 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Kiểm tra mật khẩu
     const isMatch = await user.comparePassword(password);
-    console.log('🔑 Password match:', isMatch ? 'Yes' : 'No');
     
     if (!isMatch) {
       return res.status(401).json({
@@ -49,14 +44,26 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Tạo token
     const token = generateToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
     console.log('✅ Login successful:', user.email);
-    console.log('📦 Token generated:', token ? 'Yes' : 'No');
 
-    // TRẢ VỀ ĐẦY ĐỦ THÔNG TIN
+    // Set cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Đăng nhập thành công!',
@@ -68,9 +75,7 @@ exports.login = async (req, res) => {
         avatar: user.avatar || null,
         phone: user.phone || '',
         isActive: user.isActive
-      },
-      token: token,
-      refreshToken: refreshToken || null
+      }
     });
   } catch (error) {
     console.error('❌ Login error:', error);
@@ -82,20 +87,40 @@ exports.login = async (req, res) => {
 };
 
 // ============================================
-// ĐĂNG KÝ
+// ĐĂNG KÝ - ĐƠN GIẢN (BỎ VALIDATION PHỨC TẠP)
 // ============================================
 exports.register = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array().map(err => err.msg)
-      });
-    }
+    console.log('📝 Register request:', req.body);
 
     const { name, email, password, phone } = req.body;
 
+    // Kiểm tra đơn giản
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng điền đầy đủ thông tin (tên, email, mật khẩu)'
+      });
+    }
+
+    // Kiểm tra email hợp lệ
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email không hợp lệ'
+      });
+    }
+
+    // Kiểm tra độ dài mật khẩu
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu phải có ít nhất 6 ký tự'
+      });
+    }
+
+    // Kiểm tra email đã tồn tại
     const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
     if (existingUser) {
       return res.status(400).json({
@@ -104,6 +129,7 @@ exports.register = async (req, res) => {
       });
     }
 
+    // Tạo user mới
     const user = new User({
       name: name.trim(),
       email: email.toLowerCase().trim(),
@@ -114,9 +140,26 @@ exports.register = async (req, res) => {
     });
 
     await user.save();
+    console.log('✅ User created:', user.email);
 
+    // Tạo token
     const token = generateToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
+
+    // Set cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000
+    });
 
     res.status(201).json({
       success: true,
@@ -127,16 +170,15 @@ exports.register = async (req, res) => {
         email: user.email,
         role: user.role,
         phone: user.phone || '',
-        isActive: user.isActive
-      },
-      token: token,
-      refreshToken: refreshToken
+        isActive: user.isActive,
+        avatar: user.avatar || null
+      }
     });
   } catch (error) {
     console.error('❌ Register error:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi server'
+      message: 'Lỗi server. Vui lòng thử lại sau.'
     });
   }
 };
@@ -178,10 +220,13 @@ exports.getMe = async (req, res) => {
 };
 
 // ============================================
-// ĐĂNG XUẤT
+// ĐĂNG XUẤT - XÓA COOKIE
 // ============================================
 exports.logout = async (req, res) => {
   try {
+    res.clearCookie('token');
+    res.clearCookie('refreshToken');
+    
     res.json({
       success: true,
       message: 'Đăng xuất thành công!'
@@ -196,20 +241,24 @@ exports.logout = async (req, res) => {
 };
 
 // ============================================
-// REFRESH TOKEN
+// REFRESH TOKEN - LẤY TỪ COOKIE
 // ============================================
 exports.refreshToken = async (req, res) => {
   try {
-    const { refreshToken } = req.body;
+    const refreshToken = req.cookies.refreshToken;
+    
     if (!refreshToken) {
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
         message: 'Refresh token không hợp lệ'
       });
     }
 
+    console.log('🔄 Refreshing token...');
+
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your_refresh_secret_key_here_123456');
     const user = await User.findById(decoded.id);
+    
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -218,15 +267,23 @@ exports.refreshToken = async (req, res) => {
     }
 
     const newToken = generateToken(user._id);
+    
+    res.cookie('token', newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
     res.json({
       success: true,
-      token: newToken
+      message: 'Token refreshed successfully'
     });
   } catch (error) {
     console.error('❌ Refresh token error:', error);
     res.status(401).json({
       success: false,
-      message: 'Refresh token không hợp lệ'
+      message: 'Refresh token không hợp lệ hoặc đã hết hạn'
     });
   }
 };

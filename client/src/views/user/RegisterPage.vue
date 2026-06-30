@@ -8,11 +8,12 @@
           <p>Tham gia cộng đồng Computer Store</p>
         </div>
 
-        <!-- Hiển thị lỗi -->
-        <div v-if="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
-          <i class="bi bi-exclamation-triangle me-2"></i>
+        <div v-if="errorMessage" class="alert alert-danger">
           {{ errorMessage }}
-          <button type="button" class="btn-close" @click="errorMessage = ''"></button>
+        </div>
+
+        <div v-if="successMessage" class="alert alert-success">
+          {{ successMessage }}
         </div>
 
         <form @submit.prevent="handleRegister">
@@ -26,7 +27,6 @@
                 v-model="form.name" 
                 placeholder="Nguyễn Văn A" 
                 required
-                :disabled="loading"
               >
             </div>
           </div>
@@ -41,7 +41,6 @@
                 v-model="form.email" 
                 placeholder="example@email.com" 
                 required
-                :disabled="loading"
               >
             </div>
           </div>
@@ -55,7 +54,6 @@
                 class="form-control" 
                 v-model="form.phone" 
                 placeholder="0123456789"
-                :disabled="loading"
               >
             </div>
           </div>
@@ -68,20 +66,18 @@
                 :type="showPassword ? 'text' : 'password'" 
                 class="form-control" 
                 v-model="form.password" 
-                placeholder="Ít nhất 6 ký tự" 
+                placeholder="Nhập mật khẩu" 
                 required
-                :disabled="loading"
+                minlength="6"
               >
               <button 
                 class="btn btn-outline-secondary" 
                 type="button" 
                 @click="showPassword = !showPassword"
-                :disabled="loading"
               >
                 <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
               </button>
             </div>
-            <small class="text-muted">Mật khẩu phải có ít nhất 6 ký tự</small>
           </div>
 
           <div class="form-group">
@@ -94,31 +90,16 @@
                 v-model="form.confirmPassword" 
                 placeholder="Nhập lại mật khẩu" 
                 required
-                :disabled="loading"
+                minlength="6"
               >
               <button 
                 class="btn btn-outline-secondary" 
                 type="button" 
                 @click="showConfirmPassword = !showConfirmPassword"
-                :disabled="loading"
               >
                 <i :class="showConfirmPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
               </button>
             </div>
-          </div>
-
-          <div class="form-check mb-3">
-            <input 
-              type="checkbox" 
-              class="form-check-input" 
-              id="terms" 
-              v-model="form.agreeTerms" 
-              required
-              :disabled="loading"
-            >
-            <label class="form-check-label" for="terms">
-              Tôi đồng ý với <a href="#" class="text-primary">Điều khoản sử dụng</a>
-            </label>
           </div>
 
           <button 
@@ -153,41 +134,39 @@ const form = reactive({
   email: '',
   phone: '',
   password: '',
-  confirmPassword: '',
-  agreeTerms: false
+  confirmPassword: ''
 });
 
 const showPassword = ref(false);
 const showConfirmPassword = ref(false);
 const loading = ref(false);
 const errorMessage = ref('');
+const successMessage = ref('');
 
 const handleImageError = (event) => {
   event.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50"%3E%3Crect width="50" height="50" fill="%232563eb"/%3E%3Ctext x="25" y="32" text-anchor="middle" fill="white" font-size="20" font-weight="bold"%3ECS%3C/text%3E%3C/svg%3E';
 };
 
 const handleRegister = async () => {
-  // Reset error
   errorMessage.value = '';
+  successMessage.value = '';
 
-  // Validate
+  // Kiểm tra đơn giản
   if (!form.name || !form.email || !form.password || !form.confirmPassword) {
-    errorMessage.value = 'Vui lòng điền đầy đủ thông tin bắt buộc';
+    errorMessage.value = 'Vui lòng điền đầy đủ thông tin';
+    toast.warning(errorMessage.value);
     return;
   }
 
   if (form.password !== form.confirmPassword) {
     errorMessage.value = 'Mật khẩu xác nhận không khớp';
+    toast.warning(errorMessage.value);
     return;
   }
 
   if (form.password.length < 6) {
     errorMessage.value = 'Mật khẩu phải có ít nhất 6 ký tự';
-    return;
-  }
-
-  if (!form.agreeTerms) {
-    errorMessage.value = 'Vui lòng đồng ý với điều khoản sử dụng';
+    toast.warning(errorMessage.value);
     return;
   }
 
@@ -195,22 +174,27 @@ const handleRegister = async () => {
 
   try {
     const result = await authStore.register({
-      name: form.name,
-      email: form.email,
+      name: form.name.trim(),
+      email: form.email.trim().toLowerCase(),
       password: form.password,
-      phone: form.phone
+      phone: form.phone || ''
     });
 
     if (result.success) {
-      // Đăng ký thành công, chuyển về trang chủ
+      successMessage.value = 'Đăng ký thành công! Đang chuyển hướng...';
       toast.success('Đăng ký thành công!');
-      router.push('/');
+      
+      setTimeout(() => {
+        router.push('/');
+      }, 1500);
     } else {
       errorMessage.value = result.message || 'Đăng ký thất bại';
+      toast.error(errorMessage.value);
     }
   } catch (error) {
     console.error('Register error:', error);
-    errorMessage.value = 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+    errorMessage.value = error.response?.data?.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+    toast.error(errorMessage.value);
   } finally {
     loading.value = false;
   }

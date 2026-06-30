@@ -18,27 +18,31 @@ export const useWishlistStore = defineStore('wishlist', {
   },
 
   actions: {
-    // Lấy danh sách yêu thích
+    // ============================================
+    // LẤY DANH SÁCH YÊU THÍCH
+    // ============================================
     async fetchWishlist() {
       this.loading = true;
       this.error = null;
       
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          this.items = [];
-          this.loadFromLocalStorage();
-          return { success: true };
-        }
+        console.log('❤️ Fetching wishlist...');
         
         const response = await api.get('/wishlist');
         console.log('❤️ Wishlist response:', response.data);
+        
         this.items = response.data.items || [];
         this.saveToLocalStorage();
         return { success: true, data: response.data };
       } catch (error) {
         console.error('❌ Fetch wishlist error:', error);
         this.error = error.response?.data?.message || 'Failed to fetch wishlist';
+        
+        // Không tự động đăng xuất, chỉ hiển thị thông báo
+        if (error.response?.status === 401) {
+          toast.warning('Vui lòng đăng nhập để xem danh sách yêu thích');
+        }
+        
         this.loadFromLocalStorage();
         return { success: false, error: this.error };
       } finally {
@@ -46,35 +50,47 @@ export const useWishlistStore = defineStore('wishlist', {
       }
     },
 
-    // Thêm vào yêu thích
+    // ============================================
+    // THÊM VÀO YÊU THÍCH
+    // ============================================
     async addToWishlist(productId) {
       this.loading = true;
       this.error = null;
       
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          toast.warning('Vui lòng đăng nhập để thêm vào yêu thích');
-          return { success: false, message: 'Vui lòng đăng nhập' };
-        }
+        console.log('❤️ Adding to wishlist:', productId);
         
         const response = await api.post('/wishlist', { productId });
+        console.log('❤️ Add response:', response.data);
+        
         this.items = response.data.items || [];
         this.saveToLocalStorage();
         toast.success('Đã thêm vào danh sách yêu thích');
         return { success: true, data: response.data };
       } catch (error) {
         console.error('❌ Add to wishlist error:', error);
+        console.error('❌ Error response:', error.response?.data);
+        
         const message = error.response?.data?.message || 'Không thể thêm vào yêu thích';
         this.error = message;
-        toast.error(message);
+        
+        // Không tự động đăng xuất, chỉ hiển thị thông báo
+        if (error.response?.status === 401) {
+          toast.warning('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+          // Không chuyển hướng tự động, để user tự quyết định
+        } else {
+          toast.error(message);
+        }
+        
         return { success: false, error: message };
       } finally {
         this.loading = false;
       }
     },
 
-    // Xóa khỏi yêu thích
+    // ============================================
+    // XÓA KHỎI YÊU THÍCH
+    // ============================================
     async removeFromWishlist(itemId) {
       this.loading = true;
       this.error = null;
@@ -96,7 +112,9 @@ export const useWishlistStore = defineStore('wishlist', {
       }
     },
 
-    // Toggle yêu thích
+    // ============================================
+    // TOGGLE YÊU THÍCH
+    // ============================================
     async toggleWishlist(productId) {
       const existing = this.items.find(item => item.product?._id === productId);
       if (existing) {
@@ -106,7 +124,9 @@ export const useWishlistStore = defineStore('wishlist', {
       }
     },
 
-    // Kiểm tra sản phẩm đã yêu thích chưa
+    // ============================================
+    // KIỂM TRA SẢN PHẨM ĐÃ YÊU THÍCH CHƯA
+    // ============================================
     async checkWishlist(productId) {
       try {
         const response = await api.get(`/wishlist/check/${productId}`);
@@ -117,16 +137,15 @@ export const useWishlistStore = defineStore('wishlist', {
       }
     },
 
-    // Xóa toàn bộ
+    // ============================================
+    // XÓA TOÀN BỘ
+    // ============================================
     async clearWishlist() {
       this.loading = true;
       this.error = null;
       
       try {
-        const token = localStorage.getItem('token');
-        if (token) {
-          await api.delete('/wishlist');
-        }
+        await api.delete('/wishlist');
         this.items = [];
         this.saveToLocalStorage();
         toast.success('Đã xóa toàn bộ danh sách yêu thích');
@@ -142,6 +161,9 @@ export const useWishlistStore = defineStore('wishlist', {
       }
     },
 
+    // ============================================
+    // LOCAL STORAGE METHODS
+    // ============================================
     loadFromLocalStorage() {
       const saved = localStorage.getItem('wishlist');
       if (saved) {

@@ -6,8 +6,6 @@ import { toast } from 'vue3-toastify';
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
-    token: localStorage.getItem('token') || null,
-    refreshToken: localStorage.getItem('refreshToken') || null,
     isAuthenticated: false,
     loading: false,
     error: null
@@ -23,7 +21,7 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     // ============================================
-    // ĐĂNG NHẬP
+    // ĐĂNG NHẬP - KHÔNG LƯU TOKEN LOCAL
     // ============================================
     async login(email, password) {
       this.loading = true;
@@ -35,36 +33,22 @@ export const useAuthStore = defineStore('auth', {
         const response = await api.post('/auth/login', {
           email: email.trim(),
           password: password.trim()
+        }, {
+          withCredentials: true // Gửi cookie
         });
 
         console.log('📦 Login response:', response.data);
 
-        const data = response.data;
-
         // Kiểm tra response
-        if (!data.success) {
-          throw new Error(data.message || 'Đăng nhập thất bại');
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Đăng nhập thất bại');
         }
 
-        // Lấy thông tin user và token
-        const user = data.user || data;
-        const token = data.token || data.accessToken;
-        const refreshToken = data.refreshToken || data.refresh_token;
+        const { user } = response.data;
 
-        if (!user || !token) {
-          throw new Error('Response thiếu thông tin user hoặc token');
-        }
-
-        // Lưu thông tin
+        // Lưu thông tin user (không lưu token)
         this.user = user;
-        this.token = token;
-        this.refreshToken = refreshToken || null;
         this.isAuthenticated = true;
-
-        localStorage.setItem('token', token);
-        if (refreshToken) {
-          localStorage.setItem('refreshToken', refreshToken);
-        }
 
         // Load cart
         const cartStore = useCartStore();
@@ -80,11 +64,6 @@ export const useAuthStore = defineStore('auth', {
         this.error = message;
         this.isAuthenticated = false;
         this.user = null;
-        this.token = null;
-        this.refreshToken = null;
-
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
 
         toast.error(message);
         return { success: false, message };
@@ -94,95 +73,71 @@ export const useAuthStore = defineStore('auth', {
     },
 
     // ============================================
-    // ĐĂNG KÝ
+    // ĐĂNG KÝ - KHÔNG LƯU TOKEN LOCAL
     // ============================================
-    async register(userData) {
-      this.loading = true;
-      this.error = null;
+    // ============================================
+// ĐĂNG KÝ - ĐƠN GIẢN
+// ============================================
+async register(userData) {
+  this.loading = true;
+  this.error = null;
 
-      try {
-        console.log('📝 Đang đăng ký:', userData.email);
+  try {
+    console.log('📝 Registering:', userData.email);
 
-        if (userData.password !== userData.confirmPassword) {
-          toast.error('Mật khẩu xác nhận không khớp');
-          return { success: false, message: 'Mật khẩu xác nhận không khớp' };
-        }
+    const response = await api.post('/auth/register', {
+      name: userData.name,
+      email: userData.email,
+      password: userData.password,
+      phone: userData.phone || ''
+    });
 
-        if (userData.password.length < 6) {
-          toast.error('Mật khẩu phải có ít nhất 6 ký tự');
-          return { success: false, message: 'Mật khẩu phải có ít nhất 6 ký tự' };
-        }
+    console.log('📦 Response:', response.data);
 
-        const response = await api.post('/auth/register', {
-          name: userData.name.trim(),
-          email: userData.email.trim(),
-          password: userData.password,
-          phone: userData.phone || ''
-        });
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Đăng ký thất bại');
+    }
 
-        const data = response.data;
+    const { user } = response.data;
 
-        if (!data.success) {
-          throw new Error(data.message || 'Đăng ký thất bại');
-        }
+    this.user = user;
+    this.isAuthenticated = true;
 
-        const user = data.user || data;
-        const token = data.token || data.accessToken;
-        const refreshToken = data.refreshToken || data.refresh_token;
-
-        this.user = user;
-        this.token = token;
-        this.refreshToken = refreshToken || null;
-        this.isAuthenticated = true;
-
-        localStorage.setItem('token', token);
-        if (refreshToken) {
-          localStorage.setItem('refreshToken', refreshToken);
-        }
-
-        toast.success(`Đăng ký thành công! Chào mừng ${user.name}!`);
-        return { success: true, user };
-      } catch (error) {
-        console.error('❌ Register error:', error);
-        const message = error.response?.data?.message || error.message || 'Đăng ký thất bại';
-        this.error = message;
-        this.isAuthenticated = false;
-        this.user = null;
-        this.token = null;
-        this.refreshToken = null;
-
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-
-        toast.error(message);
-        return { success: false, message };
-      } finally {
-        this.loading = false;
-      }
-    },
+    toast.success(`Đăng ký thành công! Chào mừng ${user.name}!`);
+    return { success: true, user };
+  } catch (error) {
+    console.error('❌ Register error:', error);
+    const message = error.response?.data?.message || error.message || 'Đăng ký thất bại';
+    this.error = message;
+    this.isAuthenticated = false;
+    this.user = null;
+    toast.error(message);
+    return { success: false, message };
+  } finally {
+    this.loading = false;
+  }
+},
 
     // ============================================
-    // ĐĂNG XUẤT
+    // ĐĂNG XUẤT - XÓA COOKIE
     // ============================================
     async logout() {
       try {
         console.log('🔓 Đang đăng xuất...');
 
-        if (this.token) {
-          await api.post('/auth/logout').catch(() => {});
-        }
+        // Gọi API logout để xóa cookie
+        await api.post('/auth/logout', {}, {
+          withCredentials: true
+        });
       } catch (error) {
         console.error('Logout API error:', error);
       } finally {
+        // Xóa state
         this.user = null;
-        this.token = null;
-        this.refreshToken = null;
         this.isAuthenticated = false;
         this.error = null;
 
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-
+        // Xóa cart
         const cartStore = useCartStore();
         cartStore.clearCart();
 
@@ -190,63 +145,50 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    // ============================================
-    // LẤY THÔNG TIN USER HIỆN TẠI
-    // ============================================
-    async getCurrentUser() {
-      if (!this.token) {
-        console.log('ℹ️ Không có token');
-        return null;
-      }
+   // ============================================
+// LẤY THÔNG TIN USER HIỆN TẠI
+// ============================================
+async getCurrentUser() {
+  this.loading = true;
 
-      this.loading = true;
+  try {
+    console.log('👤 Đang lấy thông tin user...');
+    const response = await api.get('/auth/me');
 
-      try {
-        console.log('👤 Đang lấy thông tin user...');
-        const response = await api.get('/auth/me');
+    if (response.data.user) {
+      this.user = response.data.user;
+      this.isAuthenticated = true;
+      this.error = null;
+      return this.user;
+    }
 
-        if (response.data.user) {
-          this.user = response.data.user;
-          this.isAuthenticated = true;
-          this.error = null;
-          return this.user;
-        }
+    return null;
+  } catch (error) {
+    console.error('❌ Get current user error:', error);
 
-        return null;
-      } catch (error) {
-        console.error('❌ Get current user error:', error);
+    if (error.response?.status === 401) {
+      // Không tự động logout, chỉ set isAuthenticated = false
+      this.isAuthenticated = false;
+      this.user = null;
+    }
 
-        if (error.response?.status === 401) {
-          const refreshed = await this.refreshToken();
-          if (refreshed) {
-            return await this.getCurrentUser();
-          }
-          this.logout();
-        }
-
-        return null;
-      } finally {
-        this.loading = false;
-      }
-    },
+    return null;
+  } finally {
+    this.loading = false;
+  }
+},
 
     // ============================================
-    // REFRESH TOKEN
+    // REFRESH TOKEN - LẤY TỪ COOKIE
     // ============================================
     async refreshToken() {
       try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (!refreshToken) {
-          console.log('ℹ️ Không có refresh token');
-          return false;
-        }
-
         console.log('🔄 Đang refresh token...');
-        const response = await api.post('/auth/refresh-token', { refreshToken });
+        const response = await api.post('/auth/refresh-token', {}, {
+          withCredentials: true
+        });
 
-        if (response.data.token) {
-          this.token = response.data.token;
-          localStorage.setItem('token', response.data.token);
+        if (response.data.success) {
           return true;
         }
 
@@ -265,12 +207,99 @@ export const useAuthStore = defineStore('auth', {
         return true;
       }
 
-      if (this.token) {
-        const user = await this.getCurrentUser();
-        return !!user;
-      }
+      const user = await this.getCurrentUser();
+      return !!user;
+    },
 
-      return false;
+    // ============================================
+    // CẬP NHẬT THÔNG TIN USER
+    // ============================================
+    async updateProfile(data) {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        console.log('📝 Updating profile:', data);
+        const response = await api.put('/users/profile', data, {
+          withCredentials: true
+        });
+
+        this.user = response.data.user;
+        toast.success('Cập nhật thông tin thành công');
+        return { success: true, user: this.user };
+      } catch (error) {
+        console.error('❌ Update profile error:', error);
+        const message = error.response?.data?.message || 'Cập nhật thất bại';
+        this.error = message;
+        toast.error(message);
+        return { success: false, message };
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // ============================================
+    // ĐỔI MẬT KHẨU
+    // ============================================
+    async changePassword(currentPassword, newPassword) {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const response = await api.put('/users/change-password', {
+          currentPassword,
+          newPassword
+        }, {
+          withCredentials: true
+        });
+
+        toast.success('Đổi mật khẩu thành công');
+        return { success: true };
+      } catch (error) {
+        console.error('❌ Change password error:', error);
+        const message = error.response?.data?.message || 'Đổi mật khẩu thất bại';
+        this.error = message;
+        toast.error(message);
+        return { success: false, message };
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // ============================================
+    // CẬP NHẬT AVATAR
+    // ============================================
+    async updateAvatar(avatarUrl) {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const response = await api.put('/users/avatar', { avatar: avatarUrl }, {
+          withCredentials: true
+        });
+
+        this.user = response.data.user;
+        toast.success('Cập nhật avatar thành công');
+        return { success: true, user: this.user };
+      } catch (error) {
+        console.error('❌ Update avatar error:', error);
+        const message = error.response?.data?.message || 'Cập nhật avatar thất bại';
+        this.error = message;
+        toast.error(message);
+        return { success: false, message };
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // ============================================
+    // RESET STATE
+    // ============================================
+    reset() {
+      this.user = null;
+      this.isAuthenticated = false;
+      this.loading = false;
+      this.error = null;
     }
   }
 });
