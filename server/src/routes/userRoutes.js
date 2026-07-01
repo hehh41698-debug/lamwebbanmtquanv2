@@ -1,28 +1,47 @@
 const express = require('express');
 const router = express.Router();
+const { 
+  getUsers, 
+  getUserById, 
+  updateUserProfile, 
+  updateUserStatus,
+  changePassword,
+  changeUserRole,
+  deleteUser
+} = require('../controllers/userController');
+const { authenticate } = require('../middleware/auth');
+const { adminOnly } = require('../middleware/auth');
 
-// Tạo các function giả để test
-const getUsers = (req, res) => {
-  res.json({ success: true, users: [] });
-};
+// ============================================
+// USER ROUTES (Cần xác thực)
+// ============================================
 
-const getUserById = (req, res) => {
-  res.json({ success: true, user: null });
-};
+// Lấy thông tin profile của user hiện tại
+router.get('/profile', authenticate, getUserById);
 
-const updateUserStatus = (req, res) => {
-  res.json({ success: true, message: 'User status updated' });
-};
+// Cập nhật profile
+router.put('/profile', authenticate, updateUserProfile);
 
-const updateUserProfile = (req, res) => {
-  res.json({ success: true, message: 'Profile updated' });
-};
+// Đổi mật khẩu
+router.put('/change-password', authenticate, changePassword);
 
-// Routes
-router.get('/profile', getUserById);
-router.put('/profile', updateUserProfile);
-router.get('/', getUsers);
-router.get('/:id', getUserById);
-router.put('/:id/status', updateUserStatus);
+// ============================================
+// ADMIN ROUTES (Cần xác thực + quyền admin)
+// ============================================
+
+// Lấy danh sách users
+router.get('/', authenticate, adminOnly, getUsers);
+
+// Lấy chi tiết user theo ID
+router.get('/:id', authenticate, adminOnly, getUserById);
+
+// Cập nhật trạng thái user (khóa/mở khóa)
+router.put('/:id/status', authenticate, adminOnly, updateUserStatus);
+
+// Thay đổi vai trò user
+router.put('/:id/role', authenticate, adminOnly, changeUserRole);
+
+// Xóa user
+router.delete('/:id', authenticate, adminOnly, deleteUser);
 
 module.exports = router;

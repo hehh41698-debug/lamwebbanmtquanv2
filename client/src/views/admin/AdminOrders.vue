@@ -1,6 +1,9 @@
 <template>
   <div class="admin-orders">
-    <h4 class="mb-4"><i class="bi bi-receipt me-2"></i>Quản lý đơn hàng</h4>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h4 class="mb-0"><i class="bi bi-receipt me-2"></i>Quản lý đơn hàng</h4>
+      <span class="badge bg-primary">{{ pagination.total || 0 }} đơn hàng</span>
+    </div>
 
     <div class="filters-bar">
       <input type="text" class="form-control" v-model="searchKeyword" placeholder="Tìm kiếm..." @input="loadOrders">
@@ -9,7 +12,9 @@
         <option v-for="(label, value) in ORDER_STATUS_LABELS" :key="value" :value="value">{{ label }}</option>
       </select>
       <input type="date" class="form-control" v-model="dateFilter" @change="loadOrders">
-      <button class="btn btn-outline-secondary" @click="resetFilters"><i class="bi bi-arrow-counterclockwise"></i> Đặt lại</button>
+      <button class="btn btn-outline-secondary" @click="resetFilters">
+        <i class="bi bi-arrow-counterclockwise"></i> Đặt lại
+      </button>
     </div>
 
     <div class="table-card">
@@ -27,22 +32,49 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-if="loading"><td colspan="7" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>
-            <tr v-else-if="orders.length === 0"><td colspan="7" class="text-center py-4 text-muted">Không có đơn hàng nào</td></tr>
+            <tr v-if="loading">
+              <td colspan="7" class="text-center py-4">
+                <div class="spinner-border text-primary"></div>
+              </td>
+            </tr>
+            <tr v-else-if="orders.length === 0">
+              <td colspan="7" class="text-center py-4 text-muted">
+                <i class="bi bi-inbox fs-3 d-block"></i>
+                Không có đơn hàng nào
+              </td>
+            </tr>
             <tr v-for="order in orders" :key="order._id">
               <td><strong>#{{ order._id?.slice(-6) }}</strong></td>
               <td>
                 <div>{{ order.user?.name || order.shippingAddress?.name }}</div>
                 <small class="text-muted">{{ order.user?.email || order.shippingAddress?.email }}</small>
               </td>
-              <td><strong>{{ formatPrice(order.total) }}</strong></td>
-              <td><span class="badge bg-info">{{ PAYMENT_METHOD_LABELS[order.paymentMethod] || order.paymentMethod }}</span></td>
-              <td><span :class="['badge', getStatusBadge(order.orderStatus)]">{{ ORDER_STATUS_LABELS[order.orderStatus] }}</span></td>
+              <td><strong class="text-primary">{{ formatPrice(order.total) }}</strong></td>
+              <td>
+                <span class="badge bg-info">{{ PAYMENT_METHOD_LABELS[order.paymentMethod] || order.paymentMethod }}</span>
+              </td>
+              <td>
+                <span 
+                  :class="['status-badge', getStatusClass(order.orderStatus)]"
+                >
+                  <i :class="getStatusIcon(order.orderStatus)"></i>
+                  {{ ORDER_STATUS_LABELS[order.orderStatus] }}
+                </span>
+              </td>
               <td>{{ formatDate(order.createdAt) }}</td>
               <td>
                 <div class="actions">
-                  <button class="btn btn-sm btn-outline-primary" @click="viewOrder(order)"><i class="bi bi-eye"></i></button>
-                  <button v-if="order.orderStatus !== 'delivered' && order.orderStatus !== 'cancelled'" class="btn btn-sm btn-outline-success" @click="openStatusModal(order)"><i class="bi bi-pencil"></i></button>
+                  <button class="btn btn-sm btn-outline-primary" @click="viewOrder(order)" title="Xem chi tiết">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                  <button 
+                    v-if="order.orderStatus !== 'delivered' && order.orderStatus !== 'cancelled'" 
+                    class="btn btn-sm btn-outline-success" 
+                    @click="openStatusModal(order)"
+                    title="Cập nhật trạng thái"
+                  >
+                    <i class="bi bi-pencil"></i>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -117,7 +149,31 @@ const selectedOrder = ref(null);
 const newStatus = ref('');
 const updating = ref(false);
 
-const getStatusBadge = (status) => ORDER_STATUS_COLORS[status] || 'secondary';
+// CSS classes cho từng trạng thái
+const getStatusClass = (status) => {
+  const classes = {
+    'pending': 'status-pending',
+    'confirmed': 'status-confirmed',
+    'processing': 'status-processing',
+    'shipped': 'status-shipped',
+    'delivered': 'status-delivered',
+    'cancelled': 'status-cancelled'
+  };
+  return classes[status] || 'status-pending';
+};
+
+// Icon cho từng trạng thái
+const getStatusIcon = (status) => {
+  const icons = {
+    'pending': 'bi bi-clock-history',
+    'confirmed': 'bi bi-check-circle',
+    'processing': 'bi bi-arrow-repeat',
+    'shipped': 'bi bi-truck',
+    'delivered': 'bi bi-box-seam',
+    'cancelled': 'bi bi-x-circle'
+  };
+  return icons[status] || 'bi bi-clock-history';
+};
 
 const loadOrders = async () => {
   const params = {
@@ -145,7 +201,6 @@ const changePage = (page) => {
 };
 
 const viewOrder = (order) => {
-  // TODO: Show order detail
   console.log('View order:', order);
 };
 
@@ -180,6 +235,7 @@ onMounted(() => loadOrders());
 
 <style scoped>
 .admin-orders { padding: 1rem; }
+
 .filters-bar {
   display: flex;
   gap: 1rem;
@@ -197,12 +253,91 @@ onMounted(() => loadOrders());
   overflow: hidden;
 }
 
-.admin-table { width: 100%; border-collapse: collapse; }
-.admin-table thead { background: #f8fafc; }
-.admin-table th { padding: 0.75rem 1rem; text-align: left; font-weight: 600; font-size: 0.875rem; color: #64748b; border-bottom: 2px solid #e2e8f0; }
-.admin-table td { padding: 0.75rem 1rem; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
-.admin-table tr:hover { background: #f8fafc; }
-.admin-table .badge { font-size: 12px; padding: 4px 12px; }
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table thead {
+  background: #f8fafc;
+}
+
+.admin-table th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #64748b;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.admin-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+.admin-table tr:hover {
+  background: #f8fafc;
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-badge i {
+  font-size: 14px;
+}
+
+/* Pending - Chờ xác nhận */
+.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+}
+
+/* Confirmed - Đã xác nhận */
+.status-confirmed {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #3b82f6;
+}
+
+/* Processing - Đang xử lý */
+.status-processing {
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #6366f1;
+}
+
+/* Shipped - Đang giao */
+.status-shipped {
+  background: #cffafe;
+  color: #0e7490;
+  border: 1px solid #06b6d4;
+}
+
+/* Delivered - Đã giao */
+.status-delivered {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #10b981;
+}
+
+/* Cancelled - Đã hủy */
+.status-cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #ef4444;
+}
 
 .actions { display: flex; gap: 6px; }
 .actions .btn { padding: 4px 8px; font-size: 0.75rem; }

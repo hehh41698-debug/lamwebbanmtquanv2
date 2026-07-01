@@ -39,6 +39,13 @@
         <span>Đánh giá</span>
         <span v-if="pendingReviews > 0" class="badge bg-warning">{{ pendingReviews }}</span>
       </router-link>
+
+      <!-- THÊM MENU TIN NHẮN -->
+      <router-link to="/admin/messages">
+        <i class="bi bi-envelope"></i>
+        <span>Tin nhắn</span>
+        <span v-if="pendingMessages > 0" class="badge bg-danger">{{ pendingMessages }}</span>
+      </router-link>
     </nav>
 
     <div class="sidebar-footer">
@@ -50,17 +57,36 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../store/auth';
+import { useMessageStore } from '../../store/message';
 import { toast } from 'vue3-toastify';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const messageStore = useMessageStore();
 
 const isOpen = ref(false);
 const pendingOrders = ref(0);
 const pendingReviews = ref(0);
+const pendingMessages = ref(0);
+
+// Lấy số lượng tin nhắn chưa xử lý
+const loadPendingMessages = async () => {
+  try {
+    // Chỉ lấy số lượng không lấy dữ liệu
+    const result = await messageStore.fetchAllMessages({ 
+      status: 'pending', 
+      limit: 1 
+    });
+    if (result.success) {
+      pendingMessages.value = messageStore.pagination.total || 0;
+    }
+  } catch (error) {
+    console.error('Load pending messages error:', error);
+  }
+};
 
 const handleLogout = async () => {
   if (confirm('Bạn có chắc muốn đăng xuất?')) {
@@ -69,6 +95,23 @@ const handleLogout = async () => {
     router.push('/login');
   }
 };
+
+// Tự động refresh số lượng tin nhắn mỗi 30 giây
+let refreshInterval = null;
+
+onMounted(() => {
+  if (authStore.isAdmin) {
+    loadPendingMessages();
+    // Refresh mỗi 30 giây
+    refreshInterval = setInterval(loadPendingMessages, 30000);
+  }
+});
+
+onUnmounted(() => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+  }
+});
 
 defineExpose({ toggle: () => { isOpen.value = !isOpen.value; } });
 </script>
@@ -152,6 +195,8 @@ defineExpose({ toggle: () => { isOpen.value = !isOpen.value; } });
   margin-left: auto;
   font-size: 11px;
   padding: 2px 8px;
+  min-width: 20px;
+  text-align: center;
 }
 
 .sidebar-footer {
@@ -159,6 +204,7 @@ defineExpose({ toggle: () => { isOpen.value = !isOpen.value; } });
   border-top: 1px solid rgba(255,255,255,0.05);
 }
 
+/* Scrollbar */
 .admin-sidebar::-webkit-scrollbar {
   width: 4px;
 }
@@ -169,7 +215,11 @@ defineExpose({ toggle: () => { isOpen.value = !isOpen.value; } });
   background: rgba(255,255,255,0.2);
   border-radius: 2px;
 }
+.admin-sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.3);
+}
 
+/* Mobile */
 @media (max-width: 992px) {
   .admin-sidebar {
     position: fixed;
@@ -179,6 +229,13 @@ defineExpose({ toggle: () => { isOpen.value = !isOpen.value; } });
   }
   .admin-sidebar.open {
     transform: translateX(0);
+  }
+}
+
+/* Dark mode scrollbar */
+@media (prefers-color-scheme: dark) {
+  .admin-sidebar {
+    background: #0f172a;
   }
 }
 </style>

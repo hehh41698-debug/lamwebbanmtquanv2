@@ -157,7 +157,11 @@
                       <td>{{ formatDate(order.createdAt) }}</td>
                       <td>{{ formatPrice(order.total) }}</td>
                       <td>
-                        <span :class="['badge', getStatusBadge(order.orderStatus)]">
+                        <!-- SỬA: Dùng status-badge thay vì badge thông thường -->
+                        <span 
+                          :class="['status-badge', getStatusClass(order.orderStatus)]"
+                        >
+                          <i :class="getStatusIcon(order.orderStatus)"></i>
                           {{ ORDER_STATUS_LABELS[order.orderStatus] }}
                         </span>
                       </td>
@@ -210,7 +214,7 @@ import { useAuthStore } from '../../store/auth';
 import { useOrderStore } from '../../store/order';
 import { useWishlistStore } from '../../store/wishlist';
 import { formatPrice, formatDate, truncateText } from '../../utils/helpers';
-import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../../utils/constants';
+import { ORDER_STATUS_LABELS } from '../../utils/constants';
 import { toast } from 'vue3-toastify';
 
 const router = useRouter();
@@ -229,8 +233,30 @@ const orderStats = ref({
   cancelled: 0
 });
 
-const getStatusBadge = (status) => {
-  return ORDER_STATUS_COLORS[status] || 'secondary';
+// CSS classes cho từng trạng thái
+const getStatusClass = (status) => {
+  const classes = {
+    'pending': 'status-pending',
+    'confirmed': 'status-confirmed',
+    'processing': 'status-processing',
+    'shipped': 'status-shipped',
+    'delivered': 'status-delivered',
+    'cancelled': 'status-cancelled'
+  };
+  return classes[status] || 'status-pending';
+};
+
+// Icon cho từng trạng thái
+const getStatusIcon = (status) => {
+  const icons = {
+    'pending': 'bi bi-clock-history',
+    'confirmed': 'bi bi-check-circle',
+    'processing': 'bi bi-arrow-repeat',
+    'shipped': 'bi bi-truck',
+    'delivered': 'bi bi-box-seam',
+    'cancelled': 'bi bi-x-circle'
+  };
+  return icons[status] || 'bi bi-clock-history';
 };
 
 const loadOrders = async () => {
@@ -441,9 +467,65 @@ onMounted(() => {
   background: #f8fafc;
 }
 
-.dashboard-table .badge {
-  font-size: 11px;
-  padding: 4px 12px;
+/* ============================================ */
+/* STATUS BADGES - NỔI BẬT */
+/* ============================================ */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.3s;
+}
+
+.status-badge i {
+  font-size: 14px;
+}
+
+/* Pending - Chờ xác nhận - Màu vàng cam */
+.status-pending {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+  border: 1px solid #f59e0b !important;
+}
+
+/* Confirmed - Đã xác nhận - Màu xanh dương */
+.status-confirmed {
+  background: #dbeafe !important;
+  color: #1e40af !important;
+  border: 1px solid #3b82f6 !important;
+}
+
+/* Processing - Đang xử lý - Màu tím */
+.status-processing {
+  background: #e0e7ff !important;
+  color: #3730a3 !important;
+  border: 1px solid #6366f1 !important;
+}
+
+/* Shipped - Đang giao - Màu xanh ngọc */
+.status-shipped {
+  background: #cffafe !important;
+  color: #0e7490 !important;
+  border: 1px solid #06b6d4 !important;
+}
+
+/* Delivered - Đã giao - Màu xanh lá */
+.status-delivered {
+  background: #d1fae5 !important;
+  color: #065f46 !important;
+  border: 1px solid #10b981 !important;
+}
+
+/* Cancelled - Đã hủy - Màu đỏ */
+.status-cancelled {
+  background: #fee2e2 !important;
+  color: #991b1b !important;
+  border: 1px solid #ef4444 !important;
 }
 
 .quick-action {

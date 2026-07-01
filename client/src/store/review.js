@@ -5,6 +5,7 @@ import { toast } from 'vue3-toastify';
 export const useReviewStore = defineStore('review', {
   state: () => ({
     reviews: [],
+    review: null,
     loading: false,
     error: null,
     pagination: {
@@ -16,7 +17,9 @@ export const useReviewStore = defineStore('review', {
   }),
 
   actions: {
-    // Lấy đánh giá sản phẩm
+    // ============================================
+    // LẤY ĐÁNH GIÁ CỦA SẢN PHẨM
+    // ============================================
     async fetchProductReviews(productId, params = {}) {
       this.loading = true;
       this.error = null;
@@ -47,7 +50,42 @@ export const useReviewStore = defineStore('review', {
       }
     },
 
-    // Tạo đánh giá mới
+    // ============================================
+    // LẤY ĐÁNH GIÁ CỦA USER HIỆN TẠI
+    // ============================================
+    async fetchUserReviews(params = {}) {
+      this.loading = true;
+      this.error = null;
+      
+      try {
+        const queryParams = new URLSearchParams();
+        Object.keys(params).forEach(key => {
+          if (params[key] !== undefined && params[key] !== '') {
+            queryParams.append(key, params[key]);
+          }
+        });
+        
+        const response = await api.get(`/reviews/user?${queryParams.toString()}`);
+        this.reviews = response.data.reviews || [];
+        this.pagination = {
+          page: response.data.page || 1,
+          limit: response.data.limit || 10,
+          total: response.data.total || 0,
+          totalPages: response.data.totalPages || 1
+        };
+        return { success: true, data: response.data };
+      } catch (error) {
+        console.error('❌ Fetch user reviews error:', error);
+        this.error = error.response?.data?.message || 'Failed to fetch user reviews';
+        return { success: false, error: this.error };
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // ============================================
+    // TẠO ĐÁNH GIÁ MỚI
+    // ============================================
     async createReview(data) {
       this.loading = true;
       this.error = null;
@@ -83,7 +121,9 @@ export const useReviewStore = defineStore('review', {
       }
     },
 
-    // Xóa đánh giá
+    // ============================================
+    // XÓA ĐÁNH GIÁ
+    // ============================================
     async deleteReview(id) {
       this.loading = true;
       this.error = null;
@@ -99,6 +139,65 @@ export const useReviewStore = defineStore('review', {
         this.error = message;
         toast.error(message);
         return { success: false, error: message };
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // ============================================
+    // DUYỆT ĐÁNH GIÁ (ADMIN)
+    // ============================================
+    async approveReview(id) {
+      this.loading = true;
+      this.error = null;
+      
+      try {
+        const response = await api.put(`/reviews/${id}/approve`);
+        const index = this.reviews.findIndex(r => r._id === id);
+        if (index !== -1) {
+          this.reviews[index] = response.data.review;
+        }
+        toast.success('Duyệt đánh giá thành công');
+        return { success: true, data: response.data };
+      } catch (error) {
+        console.error('❌ Approve review error:', error);
+        const message = error.response?.data?.message || 'Không thể duyệt đánh giá';
+        this.error = message;
+        toast.error(message);
+        return { success: false, error: message };
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // ============================================
+    // LẤY TẤT CẢ ĐÁNH GIÁ (ADMIN)
+    // ============================================
+    async fetchAllReviews(params = {}) {
+      this.loading = true;
+      this.error = null;
+      
+      try {
+        const queryParams = new URLSearchParams();
+        Object.keys(params).forEach(key => {
+          if (params[key] !== undefined && params[key] !== '') {
+            queryParams.append(key, params[key]);
+          }
+        });
+        
+        const response = await api.get(`/reviews/admin?${queryParams.toString()}`);
+        this.reviews = response.data.reviews || [];
+        this.pagination = {
+          page: response.data.page || 1,
+          limit: response.data.limit || 10,
+          total: response.data.total || 0,
+          totalPages: response.data.totalPages || 1
+        };
+        return { success: true, data: response.data };
+      } catch (error) {
+        console.error('❌ Fetch all reviews error:', error);
+        this.error = error.response?.data?.message || 'Failed to fetch reviews';
+        return { success: false, error: this.error };
       } finally {
         this.loading = false;
       }

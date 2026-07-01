@@ -2,51 +2,151 @@ const Product = require('../models/Product');
 const Category = require('../models/Category');
 
 // ============================================
-// LẤY DANH SÁCH SẢN PHẨM
+// LẤY DANH SÁCH SẢN PHẨM VỚI BỘ LỌC ĐẦY ĐỦ
 // ============================================
 exports.getProducts = async (req, res) => {
   try {
-    console.log('🔍 Fetching products...');
+    console.log('🔍 Fetching products with filters:', req.query);
     
-    const { page = 1, limit = 12, category, search } = req.query;
-    const query = {};
+    const { 
+      page = 1, 
+      limit = 12, 
+      category, 
+      brand,
+      minPrice,
+      maxPrice,
+      minRating,
+      sort = 'createdAt',
+      order = 'desc',
+      search,
+      isFeatured,
+      inStock
+    } = req.query;
 
+    const query = {};
+    const sortOptions = {};
+
+    // 1. Lọc theo danh mục
     if (category) {
       const categoryDoc = await Category.findOne({ slug: category });
       if (categoryDoc) {
         query.category = categoryDoc._id;
+        console.log('📂 Filter by category:', categoryDoc.name);
+      } else {
+        console.log('⚠️ Category not found:', category);
       }
     }
 
-    if (search) {
-      query.name = { $regex: search, $options: 'i' };
+    // 2. Lọc theo thương hiệu
+    if (brand) {
+      const brands = brand.split(',').map(b => b.trim());
+      query.brand = { $in: brands };
+      console.log('🏷️ Filter by brand:', brands);
     }
 
-    const skip = (page - 1) * limit;
+    // 3. Lọc theo khoảng giá
+    if (minPrice !== undefined && minPrice !== '' && !isNaN(minPrice)) {
+      query.price = { $gte: parseFloat(minPrice) };
+    }
+    if (maxPrice !== undefined && maxPrice !== '' && !isNaN(maxPrice)) {
+      if (!query.price) query.price = {};
+      query.price.$lte = parseFloat(maxPrice);
+    }
+    if (query.price) {
+      console.log('💰 Price range:', query.price);
+    }
+
+    // 4. Lọc theo đánh giá
+    if (minRating && minRating > 0 && !isNaN(minRating)) {
+      query.rating = { $gte: parseFloat(minRating) };
+      console.log('⭐ Filter by rating:', minRating);
+    }
+
+    // 5. Tìm kiếm theo tên hoặc mô tả
+    if (search && search.trim()) {
+      const searchTerm = search.trim();
+      query.$or = [
+        { name: { $regex: searchTerm, $options: 'i' } },
+        { description: { $regex: searchTerm, $options: 'i' } }
+      ];
+      console.log('🔍 Search:', searchTerm);
+    }
+
+    // 6. Lọc sản phẩm nổi bật
+    if (isFeatured === 'true' || isFeatured === true) {
+      query.isFeatured = true;
+      console.log('⭐ Filter: Featured products');
+    }
+
+    // 7. Lọc còn hàng
+    if (inStock === 'true' || inStock === true) {
+      query.stock = { $gt: 0 };
+      console.log('📦 Filter: In stock');
+    }
+
+    // 8. Sắp xếp - XỬ LÝ ĐÚNG CÁC TRƯỜNG HỢP
+    const sortField = sort || 'createdAt';
+    const sortOrder = order === 'asc' ? 1 : -1;
     
-    const products = await Product.find(query)
-      .populate('category')
-      .skip(skip)
-      .limit(parseInt(limit))
-      .sort({ createdAt: -1 });
+    // Map các trường sort
+    const sortMap = {
+      'newest': 'createdAt',
+      'price': 'price',
+      'name': 'name',
+      'rating': 'rating',
+      'sold': 'sold',
+      'createdAt': 'createdAt'
+    };
+    
+    // Xử lý sort với format "price-asc" hoặc "price-desc"
+    let actualSortField = sortField;
+    let actualSortOrder = sortOrder;
+    
+    if (sortField.includes('-')) {
+      const parts = sortField.split('-');
+      actualSortField = parts[0];
+      actualSortOrder = parts[1] === 'asc' ? 1 : -1;
+    }
+    
+    // Map field name
+    actualSortField = sortMap[actualSortField] || actualSortField;
+    sortOptions[actualSortField] = actualSortOrder;
+    console.log('📊 Sort:', sortOptions);
 
-    const total = await Product.countDocuments(query);
+    // Phân trang
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const limitNum = parseInt(limit);
 
-    console.log(`✅ Found ${products.length} products`);
+    console.log('📋 Final Query:', JSON.stringify(query));
+
+    // Thực hiện truy vấn
+    const [products, total] = await Promise.all([
+      Product.find(query)
+        .populate('category', 'name slug')
+        .skip(skip)
+        .limit(limitNum)
+        .sort(sortOptions)
+        .lean(),
+      Product.countDocuments(query)
+    ]);
+
+    console.log(`✅ Found ${products.length} products (filtered)`);
+    console.log(`📊 Total count: ${total}`);
 
     res.json({
       success: true,
       products,
       total,
       page: parseInt(page),
-      limit: parseInt(limit),
-      totalPages: Math.ceil(total / limit)
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum)
     });
   } catch (error) {
     console.error('❌ Get products error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -56,7 +156,7 @@ exports.getProducts = async (req, res) => {
 // ============================================
 exports.getProductById = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).populate('category');
+    const product = await Product.findById(req.params.id).populate('category', 'name slug');
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -80,9 +180,10 @@ exports.getFeaturedProducts = async (req, res) => {
   try {
     const { limit = 8 } = req.query;
     const products = await Product.find({ isFeatured: true })
-      .populate('category')
+      .populate('category', 'name slug')
       .limit(parseInt(limit))
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
     
     res.json({ success: true, products });
   } catch (error) {
@@ -101,9 +202,10 @@ exports.getBestSellers = async (req, res) => {
   try {
     const { limit = 8 } = req.query;
     const products = await Product.find({})
-      .populate('category')
+      .populate('category', 'name slug')
       .sort({ sold: -1 })
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
     
     res.json({ success: true, products });
   } catch (error) {
@@ -121,8 +223,9 @@ exports.getBestSellers = async (req, res) => {
 exports.getProductsByCategory = async (req, res) => {
   try {
     const products = await Product.find({ category: req.params.categoryId })
-      .populate('category')
-      .sort({ createdAt: -1 });
+      .populate('category', 'name slug')
+      .sort({ createdAt: -1 })
+      .lean();
     
     res.json({ success: true, products });
   } catch (error) {
@@ -141,7 +244,10 @@ exports.getProductsByBrand = async (req, res) => {
   try {
     const products = await Product.find({
       brand: { $regex: req.params.brand, $options: 'i' }
-    }).populate('category');
+    })
+      .populate('category', 'name slug')
+      .sort({ createdAt: -1 })
+      .lean();
     
     res.json({ success: true, products });
   } catch (error) {
@@ -158,7 +264,9 @@ exports.getProductsByBrand = async (req, res) => {
 // ============================================
 exports.getProductBySlug = async (req, res) => {
   try {
-    const product = await Product.findOne({ slug: req.params.slug }).populate('category');
+    const product = await Product.findOne({ slug: req.params.slug })
+      .populate('category', 'name slug');
+    
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -181,7 +289,7 @@ exports.getProductBySlug = async (req, res) => {
 exports.searchProducts = async (req, res) => {
   try {
     const { q, limit = 20 } = req.query;
-    if (!q) {
+    if (!q || !q.trim()) {
       return res.status(400).json({
         success: false,
         message: 'Search query is required'
@@ -190,12 +298,14 @@ exports.searchProducts = async (req, res) => {
     
     const products = await Product.find({
       $or: [
-        { name: { $regex: q, $options: 'i' } },
-        { description: { $regex: q, $options: 'i' } }
+        { name: { $regex: q.trim(), $options: 'i' } },
+        { description: { $regex: q.trim(), $options: 'i' } }
       ]
     })
-      .populate('category')
-      .limit(parseInt(limit));
+      .populate('category', 'name slug')
+      .limit(parseInt(limit))
+      .sort({ createdAt: -1 })
+      .lean();
     
     res.json({ success: true, products });
   } catch (error) {
@@ -213,6 +323,7 @@ exports.searchProducts = async (req, res) => {
 exports.getAllBrands = async (req, res) => {
   try {
     const brands = await Product.distinct('brand');
+    brands.sort();
     res.json({ success: true, brands });
   } catch (error) {
     console.error('❌ Get brands error:', error);
@@ -241,8 +352,10 @@ exports.getSimilarProducts = async (req, res) => {
       category: currentProduct.category,
       _id: { $ne: req.params.id }
     })
-      .populate('category')
-      .limit(parseInt(limit));
+      .populate('category', 'name slug')
+      .limit(parseInt(limit))
+      .sort({ createdAt: -1 })
+      .lean();
     
     res.json({ success: true, products });
   } catch (error) {
@@ -260,18 +373,9 @@ exports.getSimilarProducts = async (req, res) => {
 exports.createProduct = async (req, res) => {
   try {
     console.log('🔄 Creating product:', req.body.name);
-    
-    // Validate required fields
-    if (!req.body.name || !req.body.price || !req.body.category) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required fields: name, price, category'
-      });
-    }
-    
     const product = new Product(req.body);
     await product.save();
-    
+    await product.populate('category', 'name slug');
     res.status(201).json({
       success: true,
       product,
@@ -289,20 +393,13 @@ exports.createProduct = async (req, res) => {
 // ============================================
 // CẬP NHẬT SẢN PHẨM (ADMIN)
 // ============================================
-// Update product
 exports.updateProduct = async (req, res) => {
   try {
-    console.log('🔄 Updating product:', req.params.id);
-    console.log('📦 Update data:', req.body);
-    
     const product = await Product.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { 
-        new: true, 
-        runValidators: true 
-      }
-    ).populate('category');
+      { new: true, runValidators: true }
+    ).populate('category', 'name slug');
     
     if (!product) {
       return res.status(404).json({
@@ -310,8 +407,6 @@ exports.updateProduct = async (req, res) => {
         message: 'Product not found'
       });
     }
-    
-    console.log('✅ Product updated:', product._id);
     res.json({
       success: true,
       product,
@@ -321,8 +416,7 @@ exports.updateProduct = async (req, res) => {
     console.error('❌ Update product error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: 'Server error'
     });
   }
 };
@@ -369,7 +463,8 @@ exports.updateStock = async (req, res) => {
       req.params.id,
       { stock },
       { new: true }
-    );
+    ).populate('category', 'name slug');
+    
     if (!product) {
       return res.status(404).json({
         success: false,

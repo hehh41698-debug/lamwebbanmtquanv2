@@ -21,7 +21,7 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     // ============================================
-    // ĐĂNG NHẬP - KHÔNG LƯU TOKEN LOCAL
+    // ĐĂNG NHẬP
     // ============================================
     async login(email, password) {
       this.loading = true;
@@ -34,23 +34,20 @@ export const useAuthStore = defineStore('auth', {
           email: email.trim(),
           password: password.trim()
         }, {
-          withCredentials: true // Gửi cookie
+          withCredentials: true
         });
 
         console.log('📦 Login response:', response.data);
 
-        // Kiểm tra response
         if (!response.data.success) {
           throw new Error(response.data.message || 'Đăng nhập thất bại');
         }
 
         const { user } = response.data;
 
-        // Lưu thông tin user (không lưu token)
         this.user = user;
         this.isAuthenticated = true;
 
-        // Load cart
         const cartStore = useCartStore();
         await cartStore.loadCart();
 
@@ -73,71 +70,67 @@ export const useAuthStore = defineStore('auth', {
     },
 
     // ============================================
-    // ĐĂNG KÝ - KHÔNG LƯU TOKEN LOCAL
+    // ĐĂNG KÝ
     // ============================================
+    async register(userData) {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        console.log('📝 Registering:', userData.email);
+
+        const response = await api.post('/auth/register', {
+          name: userData.name,
+          email: userData.email,
+          password: userData.password,
+          phone: userData.phone || ''
+        }, {
+          withCredentials: true
+        });
+
+        console.log('📦 Response:', response.data);
+
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Đăng ký thất bại');
+        }
+
+        const { user } = response.data;
+
+        this.user = user;
+        this.isAuthenticated = true;
+
+        toast.success(`Đăng ký thành công! Chào mừng ${user.name}!`);
+        return { success: true, user };
+      } catch (error) {
+        console.error('❌ Register error:', error);
+        const message = error.response?.data?.message || error.message || 'Đăng ký thất bại';
+        this.error = message;
+        this.isAuthenticated = false;
+        this.user = null;
+        toast.error(message);
+        return { success: false, message };
+      } finally {
+        this.loading = false;
+      }
+    },
+
     // ============================================
-// ĐĂNG KÝ - ĐƠN GIẢN
-// ============================================
-async register(userData) {
-  this.loading = true;
-  this.error = null;
-
-  try {
-    console.log('📝 Registering:', userData.email);
-
-    const response = await api.post('/auth/register', {
-      name: userData.name,
-      email: userData.email,
-      password: userData.password,
-      phone: userData.phone || ''
-    });
-
-    console.log('📦 Response:', response.data);
-
-    if (!response.data.success) {
-      throw new Error(response.data.message || 'Đăng ký thất bại');
-    }
-
-    const { user } = response.data;
-
-    this.user = user;
-    this.isAuthenticated = true;
-
-    toast.success(`Đăng ký thành công! Chào mừng ${user.name}!`);
-    return { success: true, user };
-  } catch (error) {
-    console.error('❌ Register error:', error);
-    const message = error.response?.data?.message || error.message || 'Đăng ký thất bại';
-    this.error = message;
-    this.isAuthenticated = false;
-    this.user = null;
-    toast.error(message);
-    return { success: false, message };
-  } finally {
-    this.loading = false;
-  }
-},
-
-    // ============================================
-    // ĐĂNG XUẤT - XÓA COOKIE
+    // ĐĂNG XUẤT
     // ============================================
     async logout() {
       try {
         console.log('🔓 Đang đăng xuất...');
 
-        // Gọi API logout để xóa cookie
         await api.post('/auth/logout', {}, {
           withCredentials: true
         });
       } catch (error) {
         console.error('Logout API error:', error);
       } finally {
-        // Xóa state
         this.user = null;
         this.isAuthenticated = false;
         this.error = null;
 
-        // Xóa cart
         const cartStore = useCartStore();
         cartStore.clearCart();
 
@@ -145,41 +138,42 @@ async register(userData) {
       }
     },
 
-   // ============================================
-// LẤY THÔNG TIN USER HIỆN TẠI
-// ============================================
-async getCurrentUser() {
-  this.loading = true;
+    // ============================================
+    // LẤY THÔNG TIN USER HIỆN TẠI
+    // ============================================
+    async getCurrentUser() {
+      this.loading = true;
 
-  try {
-    console.log('👤 Đang lấy thông tin user...');
-    const response = await api.get('/auth/me');
+      try {
+        console.log('👤 Đang lấy thông tin user...');
+        const response = await api.get('/auth/me', {
+          withCredentials: true
+        });
 
-    if (response.data.user) {
-      this.user = response.data.user;
-      this.isAuthenticated = true;
-      this.error = null;
-      return this.user;
-    }
+        if (response.data.user) {
+          this.user = response.data.user;
+          this.isAuthenticated = true;
+          this.error = null;
+          return this.user;
+        }
 
-    return null;
-  } catch (error) {
-    console.error('❌ Get current user error:', error);
+        return null;
+      } catch (error) {
+        console.error('❌ Get current user error:', error);
 
-    if (error.response?.status === 401) {
-      // Không tự động logout, chỉ set isAuthenticated = false
-      this.isAuthenticated = false;
-      this.user = null;
-    }
+        if (error.response?.status === 401) {
+          this.isAuthenticated = false;
+          this.user = null;
+        }
 
-    return null;
-  } finally {
-    this.loading = false;
-  }
-},
+        return null;
+      } finally {
+        this.loading = false;
+      }
+    },
 
     // ============================================
-    // REFRESH TOKEN - LẤY TỪ COOKIE
+    // REFRESH TOKEN
     // ============================================
     async refreshToken() {
       try {
@@ -239,25 +233,41 @@ async getCurrentUser() {
     },
 
     // ============================================
-    // ĐỔI MẬT KHẨU
+    // ĐỔI MẬT KHẨU (SỬA LẠI)
     // ============================================
     async changePassword(currentPassword, newPassword) {
       this.loading = true;
       this.error = null;
 
       try {
+        console.log('🔐 Đang đổi mật khẩu...');
+        console.log('👤 User:', this.user?.email);
+        console.log('📝 Current password length:', currentPassword?.length || 0);
+        console.log('📝 New password length:', newPassword?.length || 0);
+
         const response = await api.put('/users/change-password', {
-          currentPassword,
-          newPassword
+          currentPassword: currentPassword,
+          newPassword: newPassword
         }, {
           withCredentials: true
         });
 
-        toast.success('Đổi mật khẩu thành công');
-        return { success: true };
+        console.log('📦 Change password response:', response.data);
+
+        if (response.data.success) {
+          toast.success(response.data.message || 'Đổi mật khẩu thành công!');
+          return { 
+            success: true, 
+            message: response.data.message || 'Đổi mật khẩu thành công!' 
+          };
+        } else {
+          throw new Error(response.data.message || 'Đổi mật khẩu thất bại');
+        }
       } catch (error) {
         console.error('❌ Change password error:', error);
-        const message = error.response?.data?.message || 'Đổi mật khẩu thất bại';
+        console.error('❌ Error response:', error.response?.data);
+        
+        const message = error.response?.data?.message || error.message || 'Đổi mật khẩu thất bại';
         this.error = message;
         toast.error(message);
         return { success: false, message };

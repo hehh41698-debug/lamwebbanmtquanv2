@@ -1,6 +1,5 @@
 const Review = require('../models/Review');
 const Product = require('../models/Product');
-const Order = require('../models/Order');
 
 // ============================================
 // TẠO ĐÁNH GIÁ MỚI
@@ -12,22 +11,6 @@ exports.createReview = async (req, res) => {
 
     console.log('📝 Creating review for product:', productId);
     console.log('👤 User:', req.user.id);
-    console.log('📦 Data:', { rating, comment, images });
-
-    // Kiểm tra dữ liệu đầu vào
-    if (!rating || rating < 1 || rating > 5) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vui lòng chọn số sao từ 1 đến 5'
-      });
-    }
-
-    if (!comment || comment.trim().length < 3) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vui lòng nhập nội dung đánh giá (ít nhất 3 ký tự)'
-      });
-    }
 
     // Kiểm tra sản phẩm tồn tại
     const product = await Product.findById(productId);
@@ -37,9 +20,6 @@ exports.createReview = async (req, res) => {
         message: 'Sản phẩm không tồn tại'
       });
     }
-
-    // Kiểm tra user đã mua sản phẩm chưa (tùy chọn)
-    // Bỏ qua nếu chưa có order
 
     // Kiểm tra đã đánh giá chưa
     const existingReview = await Review.findOne({
@@ -67,19 +47,8 @@ exports.createReview = async (req, res) => {
     await review.save();
     console.log('✅ Review saved:', review._id);
 
-    // Cập nhật rating trung bình
-    const reviews = await Review.find({ 
-      product: productId, 
-      isApproved: true 
-    });
-    
-    const avgRating = reviews.length > 0 
-      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length 
-      : rating;
-    
-    await Product.findByIdAndUpdate(productId, {
-      rating: Math.round(avgRating * 10) / 10
-    });
+    // Cập nhật rating trung bình của sản phẩm
+    await updateProductRating(productId);
 
     // Populate user info
     await review.populate('user', 'name avatar');
@@ -106,8 +75,6 @@ exports.getProductReviews = async (req, res) => {
     const productId = req.params.productId;
     const { page = 1, limit = 10 } = req.query;
 
-    console.log('📋 Getting reviews for product:', productId);
-
     const skip = (page - 1) * limit;
     
     const [reviews, total] = await Promise.all([
@@ -125,8 +92,6 @@ exports.getProductReviews = async (req, res) => {
       })
     ]);
 
-    console.log('✅ Found', reviews.length, 'reviews');
-
     res.json({
       success: true,
       reviews,
@@ -140,6 +105,44 @@ exports.getProductReviews = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Lỗi khi lấy đánh giá'
+    });
+  }
+};
+
+// ============================================
+// LẤY ĐÁNH GIÁ CỦA USER (Dành cho User Dashboard)
+// ============================================
+exports.getUserReviews = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { page = 1, limit = 10 } = req.query;
+
+    console.log('📋 Getting reviews for user:', userId);
+
+    const skip = (page - 1) * limit;
+    
+    const [reviews, total] = await Promise.all([
+      Review.find({ user: userId })
+        .populate('product', 'name images price')
+        .skip(skip)
+        .limit(parseInt(limit))
+        .sort({ createdAt: -1 }),
+      Review.countDocuments({ user: userId })
+    ]);
+
+    res.json({
+      success: true,
+      reviews,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    console.error('❌ Get user reviews error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy đánh giá của bạn'
     });
   }
 };
@@ -172,18 +175,7 @@ exports.deleteReview = async (req, res) => {
     await review.deleteOne();
 
     // Cập nhật lại rating
-    const reviews = await Review.find({ 
-      product: review.product, 
-      isApproved: true 
-    });
-    
-    const avgRating = reviews.length > 0 
-      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length 
-      : 0;
-    
-    await Product.findByIdAndUpdate(review.product, {
-      rating: Math.round(avgRating * 10) / 10
-    });
+    await updateProductRating(review.product);
 
     res.json({
       success: true,
@@ -195,5 +187,110 @@ exports.deleteReview = async (req, res) => {
       success: false,
       message: 'Lỗi khi xóa đánh giá'
     });
+  }
+};
+
+// ============================================
+// DUYỆT ĐÁNH GIÁ (ADMIN)
+// ============================================
+exports.approveReview = async (req, res) => {
+  try {
+    const review = await Review.findByIdAndUpdate(
+      req.params.id,
+      { isApproved: true },
+      { new: true }
+    ).populate('user', 'name avatar');
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đánh giá'
+      });
+    }
+
+    await updateProductRating(review.product);
+
+    res.json({
+      success: true,
+      review,
+      message: 'Duyệt đánh giá thành công'
+    });
+  } catch (error) {
+    console.error('❌ Approve review error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi duyệt đánh giá'
+    });
+  }
+};
+
+// ============================================
+// LẤY TẤT CẢ ĐÁNH GIÁ (ADMIN)
+// ============================================
+exports.getAllReviews = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status, search } = req.query;
+    const query = {};
+
+    if (status === 'approved') {
+      query.isApproved = true;
+    } else if (status === 'pending') {
+      query.isApproved = false;
+    }
+
+    if (search) {
+      query.comment = { $regex: search, $options: 'i' };
+    }
+
+    const skip = (page - 1) * limit;
+    
+    const [reviews, total] = await Promise.all([
+      Review.find(query)
+        .populate('user', 'name avatar')
+        .populate('product', 'name images')
+        .skip(skip)
+        .limit(parseInt(limit))
+        .sort({ createdAt: -1 }),
+      Review.countDocuments(query)
+    ]);
+
+    res.json({
+      success: true,
+      reviews,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    console.error('❌ Get all reviews error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi lấy danh sách đánh giá'
+    });
+  }
+};
+
+// ============================================
+// CẬP NHẬT RATING SẢN PHẨM (Helper)
+// ============================================
+const updateProductRating = async (productId) => {
+  try {
+    const reviews = await Review.find({ 
+      product: productId, 
+      isApproved: true 
+    });
+    
+    const avgRating = reviews.length > 0 
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length 
+      : 0;
+    
+    await Product.findByIdAndUpdate(productId, {
+      rating: Math.round(avgRating * 10) / 10
+    });
+    
+    console.log('✅ Product rating updated:', productId, avgRating);
+  } catch (error) {
+    console.error('❌ Update product rating error:', error);
   }
 };

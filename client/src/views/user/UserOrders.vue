@@ -33,7 +33,11 @@
             <span class="order-id">#{{ order._id?.slice(-8) }}</span>
             <span class="order-date">{{ formatDate(order.createdAt) }}</span>
           </div>
-          <span :class="['badge', getStatusBadge(order.orderStatus)]">
+          <!-- SỬA: Áp dụng status-badge thay vì badge -->
+          <span 
+            :class="['status-badge', getStatusClass(order.orderStatus)]"
+          >
+            <i :class="getStatusIcon(order.orderStatus)"></i>
             {{ ORDER_STATUS_LABELS[order.orderStatus] }}
           </span>
         </div>
@@ -87,7 +91,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useOrderStore } from '../../store/order';
 import { formatPrice, formatDate } from '../../utils/helpers';
-import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '../../utils/constants';
+import { ORDER_STATUS_LABELS } from '../../utils/constants';
 import { toast } from 'vue3-toastify';
 
 const orderStore = useOrderStore();
@@ -99,7 +103,32 @@ const pagination = computed(() => orderStore.pagination);
 const statusFilter = ref('');
 const searchKeyword = ref('');
 
-const getStatusBadge = (status) => ORDER_STATUS_COLORS[status] || 'secondary';
+// CSS classes cho từng trạng thái
+const getStatusClass = (status) => {
+  const classes = {
+    'pending': 'status-pending',
+    'confirmed': 'status-confirmed',
+    'processing': 'status-processing',
+    'shipped': 'status-shipped',
+    'delivered': 'status-delivered',
+    'cancelled': 'status-cancelled'
+  };
+  return classes[status] || 'status-pending';
+};
+
+// Icon cho từng trạng thái
+const getStatusIcon = (status) => {
+  const icons = {
+    'pending': 'bi bi-clock-history',
+    'confirmed': 'bi bi-check-circle',
+    'processing': 'bi bi-arrow-repeat',
+    'shipped': 'bi bi-truck',
+    'delivered': 'bi bi-box-seam',
+    'cancelled': 'bi bi-x-circle'
+  };
+  return icons[status] || 'bi bi-clock-history';
+};
+
 const canCancel = (order) => ['pending', 'confirmed'].includes(order.orderStatus);
 
 const loadOrders = async () => {
@@ -154,6 +183,12 @@ onMounted(() => loadOrders());
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1rem;
+  transition: all 0.3s;
+  background: white;
+}
+
+.order-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
 .order-card-header {
@@ -165,8 +200,76 @@ onMounted(() => loadOrders());
   border-bottom: 1px solid #e2e8f0;
 }
 
-.order-id { font-weight: 600; }
-.order-date { font-size: 0.875rem; color: #94a3b8; margin-left: 1rem; }
+.order-id { 
+  font-weight: 600; 
+  color: #1a202c;
+}
+.order-date { 
+  font-size: 0.875rem; 
+  color: #94a3b8; 
+  margin-left: 1rem; 
+}
+
+/* ============================================ */
+/* STATUS BADGES - NỔI BẬT VỚI MÀU SẮC RÕ RÀNG */
+/* ============================================ */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.3s;
+}
+
+.status-badge i {
+  font-size: 14px;
+}
+
+/* Pending - Chờ xác nhận - Màu vàng cam */
+.status-pending {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+  border: 1px solid #f59e0b !important;
+}
+
+/* Confirmed - Đã xác nhận - Màu xanh dương */
+.status-confirmed {
+  background: #dbeafe !important;
+  color: #1e40af !important;
+  border: 1px solid #3b82f6 !important;
+}
+
+/* Processing - Đang xử lý - Màu tím */
+.status-processing {
+  background: #e0e7ff !important;
+  color: #3730a3 !important;
+  border: 1px solid #6366f1 !important;
+}
+
+/* Shipped - Đang giao - Màu xanh ngọc */
+.status-shipped {
+  background: #cffafe !important;
+  color: #0e7490 !important;
+  border: 1px solid #06b6d4 !important;
+}
+
+/* Delivered - Đã giao - Màu xanh lá */
+.status-delivered {
+  background: #d1fae5 !important;
+  color: #065f46 !important;
+  border: 1px solid #10b981 !important;
+}
+
+/* Cancelled - Đã hủy - Màu đỏ */
+.status-cancelled {
+  background: #fee2e2 !important;
+  color: #991b1b !important;
+  border: 1px solid #ef4444 !important;
+}
 
 .order-item {
   display: flex;
@@ -201,7 +304,7 @@ onMounted(() => loadOrders());
 }
 
 .order-total span { color: #64748b; margin-right: 0.5rem; }
-.order-total strong { font-size: 1.1rem; }
+.order-total strong { font-size: 1.1rem; color: #1a202c; }
 
 .order-actions { display: flex; gap: 0.5rem; }
 
@@ -212,10 +315,28 @@ onMounted(() => loadOrders());
 }
 
 @media (max-width: 768px) {
-  .orders-header { flex-direction: column; align-items: stretch; }
-  .orders-filters { flex-direction: column; }
+  .orders-header { 
+    flex-direction: column; 
+    align-items: stretch; 
+  }
+  .orders-filters { 
+    flex-direction: column; 
+  }
   .orders-filters .form-select,
-  .orders-filters .form-control { width: 100%; }
-  .order-card-footer { flex-direction: column; gap: 0.5rem; }
+  .orders-filters .form-control { 
+    width: 100%; 
+  }
+  .order-card-footer { 
+    flex-direction: column; 
+    gap: 0.5rem; 
+  }
+  .order-card-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .status-badge {
+    font-size: 12px;
+    padding: 4px 10px;
+  }
 }
 </style>

@@ -24,6 +24,20 @@ const UserReviews = () => import('../views/user/UserReviews.vue')
 const UserWishlist = () => import('../views/user/UserWishlist.vue')
 
 // ============================================
+// SUPPORT ROUTES (Public - Không cần đăng nhập)
+// ============================================
+const SupportLayout = () => import('../views/SupportLayout.vue')
+const WarrantyPolicy = () => import('../views/support/WarrantyPolicy.vue')
+const ReturnPolicy = () => import('../views/support/ReturnPolicy.vue')
+const BuyingGuide = () => import('../views/support/BuyingGuide.vue')
+const FAQ = () => import('../views/support/FAQ.vue')
+
+// ============================================
+// CONTACT ROUTE (Yêu cầu đăng nhập)
+// ============================================
+const Contact = () => import('../views/Contact.vue')
+
+// ============================================
 // ADMIN ROUTES
 // ============================================
 const AdminLayout = () => import('../views/admin/AdminLayout.vue')
@@ -33,6 +47,7 @@ const AdminOrders = () => import('../views/admin/AdminOrders.vue')
 const AdminUsers = () => import('../views/admin/AdminUsers.vue')
 const AdminCategories = () => import('../views/admin/AdminCategories.vue')
 const AdminReviews = () => import('../views/admin/AdminReviews.vue')
+const AdminMessages = () => import('../views/admin/AdminMessages.vue') // THÊM DÒNG NÀY
 
 // ============================================
 // 404 NOT FOUND
@@ -41,13 +56,37 @@ const NotFound = () => import('../views/NotFound.vue')
 
 const routes = [
   // ============================================
-  // PUBLIC ROUTES
+  // PUBLIC ROUTES (Không cần đăng nhập)
   // ============================================
   { path: '/', name: 'Home', component: HomePage },
   { path: '/products', name: 'Products', component: ProductsPage },
   { path: '/product/:id', name: 'ProductDetail', component: ProductDetailPage },
   { path: '/login', name: 'Login', component: LoginPage },
   { path: '/register', name: 'Register', component: RegisterPage },
+  
+  // ============================================
+  // SUPPORT ROUTES (Public - Không cần đăng nhập)
+  // ============================================
+  {
+    path: '/support',
+    component: SupportLayout,
+    children: [
+      { path: 'warranty', name: 'WarrantyPolicy', component: WarrantyPolicy },
+      { path: 'return', name: 'ReturnPolicy', component: ReturnPolicy },
+      { path: 'guide', name: 'BuyingGuide', component: BuyingGuide },
+      { path: 'faq', name: 'FAQ', component: FAQ }
+    ]
+  },
+  
+  // ============================================
+  // CONTACT ROUTE (YÊU CẦU ĐĂNG NHẬP)
+  // ============================================
+  { 
+    path: '/contact', 
+    name: 'Contact', 
+    component: Contact,
+    meta: { requiresAuth: true }
+  },
   
   // ============================================
   // USER ROUTES (Requires Authentication)
@@ -96,7 +135,8 @@ const routes = [
       { path: 'orders', name: 'AdminOrders', component: AdminOrders },
       { path: 'users', name: 'AdminUsers', component: AdminUsers },
       { path: 'categories', name: 'AdminCategories', component: AdminCategories },
-      { path: 'reviews', name: 'AdminReviews', component: AdminReviews }
+      { path: 'reviews', name: 'AdminReviews', component: AdminReviews },
+      { path: 'messages', name: 'AdminMessages', component: AdminMessages } // THÊM DÒNG NÀY
     ]
   },
   

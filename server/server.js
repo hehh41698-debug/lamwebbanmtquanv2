@@ -22,6 +22,7 @@ const orderRoutes = require('./src/routes/orderRoutes');
 const reviewRoutes = require('./src/routes/reviewRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 const wishlistRoutes = require('./src/routes/wishlistRoutes');
+const messageRoutes = require('./src/routes/messageRoutes'); // THÊM DÒNG NÀY
 
 // Import passport config
 require('./src/config/passport');
@@ -59,7 +60,7 @@ app.use(cookieParser());
 app.use(passport.initialize());
 
 // ============================================
-// RATE LIMITING - SỬ DỤNG BIẾN TỪ .ENV
+// RATE LIMITING
 // ============================================
 const limiter = rateLimit({
   windowMs: (process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000,
@@ -71,7 +72,6 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Bỏ qua rate limit cho auth routes (đăng ký, đăng nhập)
     if (req.path.startsWith('/auth/')) return true;
     if (req.path.startsWith('/test-')) return true;
     if (req.path === '/health') return true;
@@ -102,7 +102,8 @@ app.get('/', (req, res) => {
         orders: '/api/orders',
         reviews: '/api/reviews',
         users: '/api/users',
-        wishlist: '/api/wishlist'
+        wishlist: '/api/wishlist',
+        messages: '/api/messages' // THÊM DÒNG NÀY
       }
     }
   });
@@ -201,6 +202,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/messages', messageRoutes); // THÊM DÒNG NÀY
 
 // ============================================
 // ERROR HANDLING
