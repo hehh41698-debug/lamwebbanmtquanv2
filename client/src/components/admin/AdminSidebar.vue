@@ -8,39 +8,45 @@
     </div>
 
     <nav class="sidebar-nav">
+      <!-- Dashboard -->
       <router-link to="/admin" exact>
         <i class="bi bi-speedometer2"></i>
         <span>Dashboard</span>
       </router-link>
 
+      <!-- Sản phẩm -->
       <router-link to="/admin/products">
         <i class="bi bi-box"></i>
         <span>Sản phẩm</span>
       </router-link>
 
+      <!-- Đơn hàng -->
       <router-link to="/admin/orders">
         <i class="bi bi-receipt"></i>
         <span>Đơn hàng</span>
         <span v-if="pendingOrders > 0" class="badge bg-danger">{{ pendingOrders }}</span>
       </router-link>
 
+      <!-- Người dùng -->
       <router-link to="/admin/users">
         <i class="bi bi-people"></i>
         <span>Người dùng</span>
       </router-link>
 
+      <!-- Danh mục -->
       <router-link to="/admin/categories">
         <i class="bi bi-tags"></i>
         <span>Danh mục</span>
       </router-link>
 
+      <!-- Đánh giá -->
       <router-link to="/admin/reviews">
         <i class="bi bi-chat-dots"></i>
         <span>Đánh giá</span>
         <span v-if="pendingReviews > 0" class="badge bg-warning">{{ pendingReviews }}</span>
       </router-link>
 
-      <!-- THÊM MENU TIN NHẮN -->
+      <!-- Tin nhắn -->
       <router-link to="/admin/messages">
         <i class="bi bi-envelope"></i>
         <span>Tin nhắn</span>
@@ -57,34 +63,41 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../store/auth';
 import { useMessageStore } from '../../store/message';
+import { useOrderStore } from '../../store/order';
+import { useReviewStore } from '../../store/review';
 import { toast } from 'vue3-toastify';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const messageStore = useMessageStore();
+const orderStore = useOrderStore();
+const reviewStore = useReviewStore();
 
 const isOpen = ref(false);
 const pendingOrders = ref(0);
 const pendingReviews = ref(0);
 const pendingMessages = ref(0);
 
-// Lấy số lượng tin nhắn chưa xử lý
-const loadPendingMessages = async () => {
+// Load counts
+const loadCounts = async () => {
   try {
-    // Chỉ lấy số lượng không lấy dữ liệu
-    const result = await messageStore.fetchAllMessages({ 
-      status: 'pending', 
-      limit: 1 
-    });
-    if (result.success) {
-      pendingMessages.value = messageStore.pagination.total || 0;
-    }
+    // Load pending orders
+    await orderStore.fetchOrders({ status: 'pending', limit: 1 });
+    pendingOrders.value = orderStore.pagination.total || 0;
+
+    // Load pending reviews
+    await reviewStore.fetchAllReviews({ status: 'pending', limit: 1 });
+    pendingReviews.value = reviewStore.pagination.total || 0;
+
+    // Load pending messages
+    await messageStore.fetchAllMessages({ status: 'pending', limit: 1 });
+    pendingMessages.value = messageStore.pagination.total || 0;
   } catch (error) {
-    console.error('Load pending messages error:', error);
+    console.error('Load counts error:', error);
   }
 };
 
@@ -96,14 +109,13 @@ const handleLogout = async () => {
   }
 };
 
-// Tự động refresh số lượng tin nhắn mỗi 30 giây
+// Auto refresh every 30 seconds
 let refreshInterval = null;
 
 onMounted(() => {
   if (authStore.isAdmin) {
-    loadPendingMessages();
-    // Refresh mỗi 30 giây
-    refreshInterval = setInterval(loadPendingMessages, 30000);
+    loadCounts();
+    refreshInterval = setInterval(loadCounts, 30000);
   }
 });
 
@@ -137,7 +149,7 @@ defineExpose({ toggle: () => { isOpen.value = !isOpen.value; } });
   display: flex;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   font-weight: 700;
   font-size: 1.1rem;
   color: white;
@@ -174,12 +186,12 @@ defineExpose({ toggle: () => { isOpen.value = !isOpen.value; } });
 }
 
 .sidebar-nav a:hover {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
   color: white;
 }
 
 .sidebar-nav a.router-link-active {
-  background: rgba(37,99,235,0.15);
+  background: rgba(37, 99, 235, 0.15);
   color: #60a5fa;
   border-left-color: #2563eb;
 }
@@ -201,7 +213,7 @@ defineExpose({ toggle: () => { isOpen.value = !isOpen.value; } });
 
 .sidebar-footer {
   padding: 1rem;
-  border-top: 1px solid rgba(255,255,255,0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* Scrollbar */
@@ -212,11 +224,11 @@ defineExpose({ toggle: () => { isOpen.value = !isOpen.value; } });
   background: transparent;
 }
 .admin-sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 2px;
 }
 .admin-sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.3);
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Mobile */
@@ -229,13 +241,6 @@ defineExpose({ toggle: () => { isOpen.value = !isOpen.value; } });
   }
   .admin-sidebar.open {
     transform: translateX(0);
-  }
-}
-
-/* Dark mode scrollbar */
-@media (prefers-color-scheme: dark) {
-  .admin-sidebar {
-    background: #0f172a;
   }
 }
 </style>

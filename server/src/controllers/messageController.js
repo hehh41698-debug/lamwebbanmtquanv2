@@ -1,5 +1,53 @@
 const Message = require('../models/Message');
 const User = require('../models/User');
+const nodemailer = require('nodemailer');
+
+// ============================================
+// CẤU HÌNH GỬI EMAIL
+// ============================================
+const sendEmail = async (to, subject, html) => {
+  try {
+    // Kiểm tra cấu hình email
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.log('⚠️ Email not configured. Skipping email send.');
+      return;
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: process.env.EMAIL_PORT || 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    await transporter.sendMail({
+      from: `"Computer Store" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      html
+    });
+    console.log('✅ Email sent to:', to);
+  } catch (error) {
+    console.error('❌ Send email error:', error);
+  }
+};
+
+// ============================================
+// HELPER: LẤY TÊN CHỦ ĐỀ
+// ============================================
+const getSubjectLabel = (subject) => {
+  const labels = {
+    order: 'Đơn hàng',
+    product: 'Sản phẩm',
+    return: 'Đổi trả',
+    warranty: 'Bảo hành',
+    other: 'Khác'
+  };
+  return labels[subject] || subject;
+};
 
 // ============================================
 // GỬI TIN NHẮN (User)
@@ -10,6 +58,7 @@ exports.sendMessage = async (req, res) => {
     const userId = req.user.id;
 
     console.log('📝 New message from user:', userId);
+    console.log('📝 Message data:', { name, email, subject });
 
     // Validate
     if (!name || !email || !subject || !message) {
@@ -32,6 +81,24 @@ exports.sendMessage = async (req, res) => {
 
     await newMessage.save();
     console.log('✅ Message saved:', newMessage._id);
+
+    // Gửi email xác nhận cho user
+    const confirmHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f8fafc;">
+        <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+          <h2 style="color: #2563eb; margin-bottom: 20px;">📨 Xác nhận tin nhắn</h2>
+          <p>Xin chào <strong>${name}</strong>,</p>
+          <p>Chúng tôi đã nhận được tin nhắn của bạn và sẽ phản hồi sớm nhất có thể.</p>
+          <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <p style="margin: 5px 0;"><strong>Chủ đề:</strong> ${getSubjectLabel(subject)}</p>
+            <p style="margin: 5px 0;"><strong>Nội dung:</strong> ${message}</p>
+          </div>
+          <p style="color: #64748b; font-size: 14px;">Trân trọng,<br>Đội ngũ Computer Store</p>
+        </div>
+      </div>
+    `;
+
+    await sendEmail(email, 'Xác nhận tin nhắn - Computer Store', confirmHtml);
 
     res.status(201).json({
       success: true,
@@ -87,6 +154,8 @@ exports.getUserMessages = async (req, res) => {
 // ============================================
 exports.getAllMessages = async (req, res) => {
   try {
+    console.log('📋 Admin fetching all messages...');
+    
     const { page = 1, limit = 10, status, search } = req.query;
     const query = {};
 
@@ -102,7 +171,7 @@ exports.getAllMessages = async (req, res) => {
       ];
     }
 
-    const skip = (page - 1) * limit;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
     
     const [messages, total] = await Promise.all([
       Message.find(query)
@@ -113,6 +182,8 @@ exports.getAllMessages = async (req, res) => {
         .sort({ createdAt: -1 }),
       Message.countDocuments(query)
     ]);
+
+    console.log(`✅ Found ${messages.length} messages`);
 
     res.json({
       success: true,
@@ -126,7 +197,7 @@ exports.getAllMessages = async (req, res) => {
     console.error('❌ Get all messages error:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi lấy danh sách tin nhắn'
+      message: 'Lỗi khi lấy danh sách tin nhắn: ' + error.message
     });
   }
 };
@@ -149,7 +220,6 @@ exports.getMessageById = async (req, res) => {
       });
     }
 
-    // Nếu là admin hoặc chủ sở hữu
     if (req.user.role !== 'admin' && message.user._id.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
@@ -157,7 +227,6 @@ exports.getMessageById = async (req, res) => {
       });
     }
 
-    // Đánh dấu đã đọc nếu là admin
     if (req.user.role === 'admin' && message.status === 'pending') {
       message.status = 'read';
       await message.save();
@@ -177,7 +246,7 @@ exports.getMessageById = async (req, res) => {
 };
 
 // ============================================
-// TRẢ LỜI TIN NHẮN (Admin)
+// TRẢ LỜI TIN NHẮN (Admin) - CÓ GỬI EMAIL
 // ============================================
 exports.replyMessage = async (req, res) => {
   try {
@@ -185,7 +254,7 @@ exports.replyMessage = async (req, res) => {
     const { reply } = req.body;
     const adminId = req.user.id;
 
-    console.log('📝 Replying to message:', messageId);
+    console.log('📝 Admin replying to message:', messageId);
     console.log('👤 Admin:', adminId);
 
     if (!reply || !reply.trim()) {
@@ -203,6 +272,7 @@ exports.replyMessage = async (req, res) => {
       });
     }
 
+    // Cập nhật tin nhắn
     message.adminReply = reply.trim();
     message.status = 'replied';
     message.repliedAt = new Date();
@@ -213,16 +283,40 @@ exports.replyMessage = async (req, res) => {
 
     console.log('✅ Reply saved for message:', messageId);
 
+    // ============================================
+    // GỬI EMAIL THÔNG BÁO CHO USER
+    // ============================================
+    const replyHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f8fafc;">
+        <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+          <h2 style="color: #2563eb; margin-bottom: 20px;">📩 Phản hồi từ Computer Store</h2>
+          <p>Xin chào <strong>${message.name}</strong>,</p>
+          <p>Chúng tôi đã xem xét tin nhắn của bạn và có phản hồi như sau:</p>
+          <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <p style="margin: 5px 0;"><strong>Chủ đề:</strong> ${getSubjectLabel(message.subject)}</p>
+            <p style="margin: 5px 0;"><strong>Tin nhắn của bạn:</strong> ${message.message}</p>
+          </div>
+          <div style="background: #d1fae5; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #10b981;">
+            <p style="margin: 5px 0;"><strong>📌 Phản hồi từ Admin:</strong></p>
+            <p style="margin: 5px 0; font-style: italic;">${reply}</p>
+          </div>
+          <p style="color: #64748b; font-size: 14px;">Trân trọng,<br>Đội ngũ Computer Store</p>
+        </div>
+      </div>
+    `;
+
+    await sendEmail(message.email, 'Phản hồi từ Computer Store', replyHtml);
+
     res.json({
       success: true,
-      message: 'Trả lời tin nhắn thành công!',
+      message: 'Trả lời tin nhắn thành công! Email đã được gửi đến khách hàng.',
       data: message
     });
   } catch (error) {
     console.error('❌ Reply message error:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi khi trả lời tin nhắn'
+      message: 'Lỗi khi trả lời tin nhắn: ' + error.message
     });
   }
 };
@@ -294,6 +388,41 @@ exports.deleteMessage = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Lỗi khi xóa tin nhắn'
+    });
+  }
+};
+
+// ============================================
+// ĐÁNH DẤU ĐÃ ĐỌC (User)
+// ============================================
+exports.markAsRead = async (req, res) => {
+  try {
+    const messageId = req.params.id;
+    const userId = req.user.id;
+
+    const message = await Message.findOne({ _id: messageId, user: userId });
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy tin nhắn'
+      });
+    }
+
+    if (message.status === 'replied') {
+      message.status = 'read';
+      await message.save();
+    }
+
+    res.json({
+      success: true,
+      message: 'Đã đánh dấu đã đọc',
+      data: message
+    });
+  } catch (error) {
+    console.error('❌ Mark as read error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi đánh dấu đã đọc'
     });
   }
 };

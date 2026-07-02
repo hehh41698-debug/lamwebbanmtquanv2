@@ -22,6 +22,7 @@ const UserProfile = () => import('../views/user/UserProfile.vue')
 const UserChangePassword = () => import('../views/user/UserChangePassword.vue')
 const UserReviews = () => import('../views/user/UserReviews.vue')
 const UserWishlist = () => import('../views/user/UserWishlist.vue')
+const UserMessages = () => import('../views/user/UserMessages.vue') // THÊM DÒNG NÀY
 
 // ============================================
 // SUPPORT ROUTES (Public - Không cần đăng nhập)
@@ -47,7 +48,7 @@ const AdminOrders = () => import('../views/admin/AdminOrders.vue')
 const AdminUsers = () => import('../views/admin/AdminUsers.vue')
 const AdminCategories = () => import('../views/admin/AdminCategories.vue')
 const AdminReviews = () => import('../views/admin/AdminReviews.vue')
-const AdminMessages = () => import('../views/admin/AdminMessages.vue') // THÊM DÒNG NÀY
+const AdminMessages = () => import('../views/admin/AdminMessages.vue')
 
 // ============================================
 // 404 NOT FOUND
@@ -118,7 +119,8 @@ const routes = [
       { path: 'profile', name: 'UserProfile', component: UserProfile },
       { path: 'change-password', name: 'UserChangePassword', component: UserChangePassword },
       { path: 'reviews', name: 'UserReviews', component: UserReviews },
-      { path: 'wishlist', name: 'UserWishlist', component: UserWishlist }
+      { path: 'wishlist', name: 'UserWishlist', component: UserWishlist },
+      { path: 'messages', name: 'UserMessages', component: UserMessages } // THÊM DÒNG NÀY
     ]
   },
   
@@ -136,7 +138,7 @@ const routes = [
       { path: 'users', name: 'AdminUsers', component: AdminUsers },
       { path: 'categories', name: 'AdminCategories', component: AdminCategories },
       { path: 'reviews', name: 'AdminReviews', component: AdminReviews },
-      { path: 'messages', name: 'AdminMessages', component: AdminMessages } // THÊM DÒNG NÀY
+      { path: 'messages', name: 'AdminMessages', component: AdminMessages }
     ]
   },
   

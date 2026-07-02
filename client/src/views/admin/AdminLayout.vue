@@ -23,6 +23,7 @@
         <router-link to="/admin/orders">
           <i class="bi bi-receipt"></i>
           <span>Đơn hàng</span>
+          <span v-if="pendingOrders > 0" class="badge bg-danger">{{ pendingOrders }}</span>
         </router-link>
 
         <router-link to="/admin/users">
@@ -38,6 +39,14 @@
         <router-link to="/admin/reviews">
           <i class="bi bi-chat-dots"></i>
           <span>Đánh giá</span>
+          <span v-if="pendingReviews > 0" class="badge bg-warning">{{ pendingReviews }}</span>
+        </router-link>
+
+        <!-- THÊM MENU TIN NHẮN -->
+        <router-link to="/admin/messages">
+          <i class="bi bi-envelope"></i>
+          <span>Tin nhắn</span>
+          <span v-if="pendingMessages > 0" class="badge bg-danger">{{ pendingMessages }}</span>
         </router-link>
       </nav>
 
@@ -72,16 +81,25 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../store/auth';
+import { useOrderStore } from '../../store/order';
+import { useReviewStore } from '../../store/review';
+import { useMessageStore } from '../../store/message';
 import { toast } from 'vue3-toastify';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const orderStore = useOrderStore();
+const reviewStore = useReviewStore();
+const messageStore = useMessageStore();
 
 const user = computed(() => authStore.user);
 const sidebarOpen = ref(false);
+const pendingOrders = ref(0);
+const pendingReviews = ref(0);
+const pendingMessages = ref(0);
 
 const toggleSidebar = () => {
   sidebarOpen.value = !sidebarOpen.value;
@@ -99,10 +117,45 @@ const handleLogout = async () => {
   }
 };
 
-// Kiểm tra nếu không phải admin thì chuyển về trang chủ
+// Load pending counts
+const loadPendingCounts = async () => {
+  try {
+    // Pending orders
+    await orderStore.fetchOrders({ status: 'pending', limit: 1 });
+    pendingOrders.value = orderStore.pagination.total || 0;
+
+    // Pending reviews
+    await reviewStore.fetchAllReviews({ status: 'pending', limit: 1 });
+    pendingReviews.value = reviewStore.pagination.total || 0;
+
+    // Pending messages
+    await messageStore.fetchAllMessages({ status: 'pending', limit: 1 });
+    pendingMessages.value = messageStore.pagination.total || 0;
+  } catch (error) {
+    console.error('Load pending counts error:', error);
+  }
+};
+
+// Auto refresh every 30 seconds
+let refreshInterval = null;
+
 onMounted(() => {
+  // Check if user is admin
   if (user.value?.role !== 'admin') {
     router.push('/');
+    return;
+  }
+  
+  // Load pending counts
+  loadPendingCounts();
+  
+  // Refresh every 30 seconds
+  refreshInterval = setInterval(loadPendingCounts, 30000);
+});
+
+onUnmounted(() => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
   }
 });
 </script>
@@ -134,7 +187,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   font-weight: 700;
   font-size: 1.1rem;
   color: white;
@@ -171,12 +224,12 @@ onMounted(() => {
 }
 
 .sidebar-nav a:hover {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
   color: white;
 }
 
 .sidebar-nav a.router-link-active {
-  background: rgba(37,99,235,0.15);
+  background: rgba(37, 99, 235, 0.15);
   color: #60a5fa;
   border-left-color: #2563eb;
 }
@@ -188,9 +241,17 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
+.sidebar-nav a .badge {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 2px 8px;
+  min-width: 20px;
+  text-align: center;
+}
+
 .sidebar-footer {
   padding: 1rem;
-  border-top: 1px solid rgba(255,255,255,0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .admin-main {
@@ -206,7 +267,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   position: sticky;
   top: 0;
   z-index: 50;
@@ -232,6 +293,7 @@ onMounted(() => {
   max-width: 100%;
 }
 
+/* Scrollbar */
 .admin-sidebar::-webkit-scrollbar {
   width: 4px;
 }
@@ -239,10 +301,14 @@ onMounted(() => {
   background: transparent;
 }
 .admin-sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 2px;
 }
+.admin-sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
 
+/* Mobile */
 @media (max-width: 992px) {
   .admin-sidebar {
     position: fixed;

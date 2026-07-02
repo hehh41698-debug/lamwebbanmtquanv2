@@ -40,6 +40,14 @@
       <li>
         <router-link to="/dashboard/wishlist">
           <i class="bi bi-heart"></i> Yêu thích
+          <span v-if="wishlistCount > 0" class="badge bg-danger ms-1">{{ wishlistCount }}</span>
+        </router-link>
+      </li>
+      <!-- THÊM MENU TIN NHẮN -->
+      <li>
+        <router-link to="/dashboard/messages">
+          <i class="bi bi-envelope"></i> Tin nhắn
+          <span v-if="unreadCount > 0" class="badge bg-danger ms-1">{{ unreadCount }}</span>
         </router-link>
       </li>
       <li>
@@ -52,15 +60,34 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../store/auth';
+import { useWishlistStore } from '../../store/wishlist';
+import { useMessageStore } from '../../store/message';
 import { toast } from 'vue3-toastify';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const wishlistStore = useWishlistStore();
+const messageStore = useMessageStore();
 
 const user = computed(() => authStore.user);
+const wishlistCount = computed(() => wishlistStore.wishlistCount);
+const unreadCount = ref(0);
+
+// Lấy số lượng tin nhắn chưa đọc
+const loadUnreadCount = async () => {
+  try {
+    // Lấy tin nhắn của user và đếm số lượng chưa đọc
+    await messageStore.fetchUserMessages({ limit: 100 });
+    const messages = messageStore.messages || [];
+    // Đếm tin nhắn có status là 'replied' (chưa đọc phản hồi)
+    unreadCount.value = messages.filter(m => m.status === 'replied').length;
+  } catch (error) {
+    console.error('Load unread messages error:', error);
+  }
+};
 
 const handleLogout = async () => {
   if (confirm('Bạn có chắc muốn đăng xuất?')) {
@@ -69,6 +96,19 @@ const handleLogout = async () => {
     router.push('/');
   }
 };
+
+onMounted(() => {
+  wishlistStore.fetchWishlist();
+  loadUnreadCount();
+  
+  // Refresh mỗi 30 giây
+  const interval = setInterval(loadUnreadCount, 30000);
+  
+  // Cleanup
+  return () => {
+    clearInterval(interval);
+  };
+});
 </script>
 
 <style scoped>
@@ -143,6 +183,13 @@ const handleLogout = async () => {
 .sidebar-menu li a i {
   font-size: 1.1rem;
   width: 20px;
+  text-align: center;
+}
+
+.sidebar-menu li a .badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  min-width: 20px;
   text-align: center;
 }
 

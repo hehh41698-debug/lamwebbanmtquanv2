@@ -55,16 +55,14 @@
             <h6>Gửi tin nhắn cho chúng tôi</h6>
 
             <!-- Thông báo -->
-            <div v-if="successMessage" class="alert alert-success alert-dismissible fade show">
+            <div v-if="successMessage" class="alert alert-success">
               <i class="bi bi-check-circle me-2"></i>
               {{ successMessage }}
-              <button type="button" class="btn-close" @click="successMessage = ''"></button>
             </div>
 
-            <div v-if="errorMessage" class="alert alert-danger alert-dismissible fade show">
+            <div v-if="errorMessage" class="alert alert-danger">
               <i class="bi bi-exclamation-triangle me-2"></i>
               {{ errorMessage }}
-              <button type="button" class="btn-close" @click="errorMessage = ''"></button>
             </div>
 
             <form @submit.prevent="submitContact">
@@ -155,6 +153,8 @@ const submitContact = async () => {
       message: form.message
     });
 
+    console.log('📦 Result:', result);
+
     if (result.success) {
       successMessage.value = 'Tin nhắn đã được gửi! Chúng tôi sẽ phản hồi sớm.';
       toast.success('Gửi tin nhắn thành công!');
@@ -178,7 +178,7 @@ const submitContact = async () => {
     }
   } catch (error) {
     console.error('❌ Submit contact error:', error);
-    errorMessage.value = 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+    errorMessage.value = error.response?.data?.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.';
     toast.error(errorMessage.value);
   } finally {
     submitting.value = false;

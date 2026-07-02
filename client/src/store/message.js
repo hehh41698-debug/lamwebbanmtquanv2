@@ -25,13 +25,13 @@ export const useMessageStore = defineStore('message', {
       this.error = null;
 
       try {
-        console.log('📝 Sending message:', data);
+        console.log('📝 Sending message to API:', data);
 
         const response = await api.post('/messages', data, {
           withCredentials: true
         });
 
-        console.log('✅ Message sent:', response.data);
+        console.log('✅ Message sent response:', response.data);
 
         toast.success(response.data.message || 'Tin nhắn đã được gửi!');
         return { success: true, data: response.data };
@@ -93,8 +93,8 @@ export const useMessageStore = defineStore('message', {
       this.error = null;
 
       try {
-        console.log('📋 Admin fetching all messages...');
-        
+        console.log('📋 Admin fetching all messages with params:', params);
+
         const queryParams = new URLSearchParams();
         Object.keys(params).forEach(key => {
           if (params[key] !== undefined && params[key] !== '') {

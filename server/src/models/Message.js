@@ -57,7 +57,6 @@ const messageSchema = new mongoose.Schema({
   }
 });
 
-// Update timestamp before save
 messageSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
